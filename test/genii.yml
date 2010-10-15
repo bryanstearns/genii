@@ -1,0 +1,19 @@
+
+machines:
+  dummy:
+    machine: demo
+
+# Additional places to look for files
+additional_paths:
+  - others
+
+# Other configuration files to *reverse-merge* with this (so
+# the other files' settings win!) Non-existant files are ignored.
+additional_configuration:
+  - nonexistant.yml
+  - genii-local.yml
+
+# Other values accessible to all features
+settings:
+  all_mail_to: stooge@example.com
+ 

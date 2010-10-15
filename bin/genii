@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+lib_path = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+unless $LOAD_PATH.include?(lib_path)
+  # puts "genii: $LOAD_PATH << #{path}"
+  $LOAD_PATH.unshift(lib_path)
+end
+require 'genii'
+exit Genii.run!(*ARGV)

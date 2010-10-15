@@ -1,0 +1,142 @@
+#!/usr/bin/env ruby
+#
+# Make a nightly backup
+
+require 'fileutils'
+require 'yaml'
+require 'syslog'
+
+def log(msg)
+  if STDOUT.isatty
+    puts msg
+  else
+    Syslog.open('nightlybackup', Syslog::LOG_PID | Syslog::LOG_CONS) \
+      unless Syslog.opened?
+    Syslog.log(Syslog::LOG_INFO, msg)
+  end
+end
+
+def die(msg)
+  log(msg)
+  exit(1)
+end
+
+class NightlyBackup
+  # Values we load from our configuration file
+  attr_accessor :s3_access_key_id, :s3_secret_access_key,
+                :encryption_key_path, :backup_dir
+
+  # Other values
+  attr_accessor :contents
+
+  def initialize
+    backup_dir ||= "/var/spool/backup_snapshots"
+
+    configuration = load_yaml(configuration_file)
+    configuration.each {|k, v| send("#{k}=", v) }
+    @contents = {}
+    Dir.glob("#{configuration_dir}/*") do |path|
+      load_yaml(path).each {|k, v| @contents[k] = v }
+    end
+  end
+
+  def run
+    if contents.empty?
+      log "nothing to do!"
+      exit(0)
+    end
+
+    create_latest_folder
+    add_backup_items
+    purge_old
+    copy_to_s3
+  end
+
+  def create_latest_folder
+    die("Today's backup already exists: #{latest_dir}") \
+      if Dir.exist?(latest_dir)
+    FileUtils.mkdir_p(latest_dir)
+  end
+
+  def add_backup_items
+    @contents.each {|item| add_to_backup(item) }
+  end
+
+  def purge_old
+    # Clean up old backups
+    # - Keep all from the last two weeks
+    # - Keep all Mondays less than two months old
+    # - Keep all second Mondays of the month (used to be first Monday, but this
+    #   increases the chance that we'll get most of the month's rental action)
+    # - Keep everything until we've got backups from the most recent two weeks.
+    doomed = []
+    recent_count = 0
+    Dir.entries(backup_dir).sort.each do |f|
+      next unless f =~ /(\d\d)(\d\d)(\d\d)(\S\S\S)$/
+      ignored, year, month, day, day_of_week = $~.to_a
+      timestamp = Time.local(year.to_i, month.to_i, day.to_i, 0, 0, 0, 0)
+      days_old = (Time.now - timestamp) / 86400
+      if days_old <= 14
+        log "-- Keeping #{f}: less than two weeks old."
+        recent_count += 1
+        next
+      end
+      if day_of_week == 'Mon'
+        if days_old <= 62
+          log "-- Keeping #{f}: a Monday less than about two months old."
+          next
+        end
+        if [8..15].include? day
+          log "-- Keeping #{f}: a second Monday of the month."
+          next
+        end
+      end
+      log "-- Deleting #{f}"
+      doomed << f
+    end
+
+    if recent_count < 14
+      log "-- .. postponing cleanup: recent backup count is #{recent_count}"
+    else
+      doomed.map {|f| FileUtils.rm("#{backup_dir}/#{f}") }
+    end
+  end
+
+  def add_to_backup(item)
+  end
+
+
+  def today
+    Time.now.strftime("%y%m%d%a") # "090817Mon"
+  end
+
+  def latest_dir
+    "#{backup_dir}/#{today}"
+  end
+
+  def configuration_dir
+    "/etc/nightlybackup/conf.d"
+  end
+
+  def configuration_file
+    "/etc/nightlybackup/nightlybackup.yml"
+  end
+
+  def load_yaml(path)
+    log("loading configuration #{path}")
+    File.open(path) {|f| YAML::load(f) }
+  end
+
+  def copy_to_s3(name)
+    old = "#{name}.old"
+    oldest = "#{name}.oldest"
+
+    # If oldest exists, remove it.
+    # if old exists, rename it to oldest
+    # if it exists, rename it to old
+    # copy it up
+
+  end
+end
+
+NightlyBackup.new.run

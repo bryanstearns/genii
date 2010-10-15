@@ -1,0 +1,15 @@
+#!/bin/sh
+# Script invoked by monit when load is high
+# Suggested by: http://www.mail-archive.com/monit-general@nongnu.org/msg02802.html
+echo $$ > /tmp/monit_top.pid
+exec 1>/tmp/monit_top.out
+exec 2>>/tmp/monit_top.out
+
+while true
+do
+        uptime
+        free
+        ps --no-headers -A -o "%cpu sz ucomm" | sort -k1nr | head -20
+        echo "#############################"
+        sleep 5
+done

@@ -1,6 +1,6 @@
 = genii
 
-Description goes here.
+System Configuration
 
 == Note on Patches/Pull Requests
  
