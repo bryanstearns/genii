@@ -3,7 +3,7 @@ class Features::Service < Feature
                 :status_command, :stop_command
 
   # A few services we know don't use Upstart yet
-  NON_UPSTART_SERVICES = %w[apache2 exim4 monit ssh]
+  NON_UPSTART_SERVICES = %w[apache2 exim4 monit ssh ganglia-monitor gmetad]
   NO_STATUS_SERVICES = %w[monit]
 
   def initialize(options={})
