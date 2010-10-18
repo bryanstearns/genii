@@ -180,10 +180,10 @@ class Features::RailsAppInstance < Feature
     
     # If our maintenance page exists, put that up instead.
     RewriteEngine On
-    RewriteCond %{DOCUMENT_ROOT}/public/system/maintenance.html -f
+    RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
     RewriteCond %{REQUEST_URI} !\.(css|gif|ico|jpg|png)$
     RewriteCond %{SCRIPT_FILENAME} !maintenance.html
-    RewriteRule ^.*$ %{DOCUMENT_ROOT}/public/system/maintenance.html [L]
+    RewriteRule ^.*$ %{DOCUMENT_ROOT}/system/maintenance.html [L]
 """
   end
 
