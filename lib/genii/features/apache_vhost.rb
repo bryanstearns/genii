@@ -46,6 +46,17 @@ class Features::ApacheVhost < Feature
                  :dir_mode => 0775
                }
 
+    depends_on(:file => {
+                 :name => "/etc/apache2/conf.d/nvh_#{ip.gsub('.','_')}",
+                 :content => """# -----------------------------------------------------------------------
+# port configuration for #{ip}, written by genii - DO NOT HAND EDIT
+# -----------------------------------------------------------------------
+#{"Listen #{uri.port}" unless [80,443].include? uri.port}
+NameVirtualHost #{ip}:#{uri.port}
+"""
+               })\
+      if ip
+
     if ssl_certificate_file
       [ssl_certificate_file, ssl_certificate_key_file,
        ssl_certificate_chain_file].compact.each do |file|
@@ -59,6 +70,13 @@ class Features::ApacheVhost < Feature
 
     depends_on :directory => {
                  :name => site_document_root,
+                 :mode => 0664
+               }
+
+    # Give our monitoring something to check for
+    depends_on :file => {
+                 :name => "#{site_document_root}/uptime.txt",
+                 :content => "success",
                  :mode => 0664
                }
 
@@ -109,7 +127,7 @@ class Features::ApacheVhost < Feature
                }
 
     depends_on(:file => {
-                 :name => "/etc/apache2/default-ssl",
+                 :name => "/etc/apache2/sites-enabled/default-ssl",
                  :unlink => true
                })\
       if localhost80?
@@ -142,13 +160,16 @@ class Features::ApacheVhost < Feature
     """# ------------------------------------------
 # written by genii - DO NOT EDIT IN PLACE
 # ------------------------------------------
-#{"Listen #{uri.port}\nNameVirtualHost *:#{uri.port}" unless [80,443].include?(uri.port)}
 <VirtualHost #{ip || "*"}:#{uri.port}>
   #{host_setting}#{alias_setting}
   ErrorLog /var/log/apache2/#{name}.error.log
   CustomLog /var/log/apache2/#{name}.access.log combined
+  RewriteEngine On
+  #RewriteLog /var/log/apache2/#{name}.rewrite.log
+  #RewriteLogLevel 9
   DocumentRoot #{site_document_root}
-  #{ssl_configuration if ssl_configuration}
+  #{ssl_configuration}
+  #{auth_configuration}
   Include /etc/apache2/apps-enabled/*__#{site_name}
 </VirtualHost>
 #{non_ssl_redirect_configuration}
@@ -181,13 +202,13 @@ class Features::ApacheVhost < Feature
     # (which can also end with %{REQUEST_URI} to preserve the path)
     to_uri = non_ssl_redirect || "https://#{uri.host}%{REQUEST_URI}"
     """
-
-<VirtualHost *:80>
+<VirtualHost #{ip || "*"}:80>
   ServerName #{uri.host}#{alias_setting}
   RewriteEngine On
-  RewriteLog /var/log/apache2/#{site_name}_to-ssl.rewrite.log
-  RewriteLogLevel 0
+  #RewriteLog /var/log/apache2/#{site_name}_to-ssl.rewrite.log
+  #RewriteLogLevel 9
   RewriteCond %{SERVER_PORT} !^443$
+  RewriteRule ^(/uptime.txt)$ $1 [L]
   RewriteRule ^.*$ #{to_uri} [L,R]
 </VirtualHost>
 """

@@ -23,6 +23,8 @@ class Features::RailsAppInstance < Feature
   #   forces host/port instead; host is ignored without port)
   attr_accessor :database, :password, :adapter, :pool, :socket,
                 :host, :port
+  # - Extra stuff to add to our apache app configuration
+  attr_accessor :apache_configuration
 
   # (Not options...)
   attr_reader :apache_application
@@ -174,13 +176,14 @@ class Features::RailsAppInstance < Feature
     """
     RailsBaseURI #{uri.path}
     RailsEnv #{environment}
+    #{apache_configuration}
     
     # If our maintenance page exists, put that up instead.
     RewriteEngine On
-    RewriteCond #{current_path}/system/maintenance.html -f
+    RewriteCond %{DOCUMENT_ROOT}/public/system/maintenance.html -f
     RewriteCond %{REQUEST_URI} !\.(css|gif|ico|jpg|png)$
     RewriteCond %{SCRIPT_FILENAME} !maintenance.html
-    RewriteRule ^.*$ #{current_path}/system/maintenance.html [L]
+    RewriteRule ^.*$ %{DOCUMENT_ROOT}/public/system/maintenance.html [L]
 """
   end
 

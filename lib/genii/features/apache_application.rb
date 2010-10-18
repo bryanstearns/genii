@@ -131,7 +131,7 @@ private
         end
       end
 
-      lines << "  #{auth_config}" if auth_config
+      lines << "  #{auth_configuration}" if auth_configuration
       lines.join("\n")
     end
   end

@@ -113,7 +113,6 @@ private
       log(:debug, "File: mkdiring-P #{to_dir}")
       FileUtils.mkdir_p(to_dir)
     end
-
     if source
       if erb
         log(:debug, "File: template-copying #{source} to #{name} with #{erb.inspect}")
@@ -129,6 +128,9 @@ private
       log(:debug, "File: symlinking #{name} to #{symlink_to}")
       ::File.symlink(symlink_to, name)
     elsif content
+      # Make sure we don't follow the symlink in writing our content
+      FileUtils.rm_f(name) if ::File.symlink?(name)
+
       log(:debug, "File: writing content to #{name}")
       ::File.open(name, 'w') {|f| f.write(content) }
     elsif munge_operation

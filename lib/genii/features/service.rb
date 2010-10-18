@@ -43,7 +43,7 @@ class Features::Service < Feature
     stop_cmd = execute(stop_command, :ignore_error => true)
     log(:progress, "Restart failed:\n#{stop_cmd.output_message}\n... starting anyway...") \
       unless stop_cmd.success?
-    sleep(1)
+    sleep(2)
     log(:progress, "Starting service #{name}")
     execute(start_command)
     log(:progress, "Start succeeded.")

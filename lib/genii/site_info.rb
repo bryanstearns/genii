@@ -125,8 +125,8 @@ module SiteInfo
     end.join("\n")
   end
   
-  def auth_config
-    @auth_config ||= if auth_users
+  def auth_configuration
+    @auth_configuration ||= if auth_users
       """
   <Location #{uri.path}>
     AuthType Digest
