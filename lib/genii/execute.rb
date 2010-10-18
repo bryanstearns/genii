@@ -21,8 +21,13 @@ module Execute
     def command=(new_command)
       @command = @full_command = new_command
 
-      @full_command = context.wrap_command(@full_command) \
-        if context
+      if context
+        @full_command = if context.respond_to? :wrap_command
+          context.wrap_command(@full_command)
+        else
+          context.call(@full_command)
+        end
+      end
 
       @full_command = "#{@full_command} 2>&1" \
         unless (binary || no_redirection)

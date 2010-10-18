@@ -25,6 +25,9 @@ class Genii
   # Command-line flags and options
   attr_reader :dry_run, :verbose
 
+  # Other state (accessible mostly for tests)
+  attr_reader :configuration, :config_file
+
   def self.run!(*args)
     return self.new(*args).run
   end
@@ -35,9 +38,10 @@ class Genii
     @serve_port = 4443
     @args = args
     @config_file = "genii.yml"
+    parse_args
   end
 
-  def run
+  def parse_args
     OptionParser.new do |opts|
       opts.banner = """genii - system installation from scratch
 
@@ -72,7 +76,9 @@ Usage: genii [options]
         return 2
       end
     end.parse!(@args)
+  end
 
+  def run
     unless File.exist?(@config_file)
       STDERR.puts "Run genii from a project directory (that has '#{@config_file}' in it)!"
       return 1
