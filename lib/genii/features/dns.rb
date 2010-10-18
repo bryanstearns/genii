@@ -25,9 +25,7 @@ class Features::Dns < Feature
   end
 
   def resolv_conf
-    """# ------------------------------------------------------
-# DNS configuration written by genii -- DO NOT HAND EDIT
-# ------------------------------------------------------
+    """#{genii_header("DNS configuration")}
 domain #{domain}
 search #{search.join(' ')}
 #{nameservers.map{|x| "nameserver #{x}" }.join("\n")}

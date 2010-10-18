@@ -42,7 +42,7 @@ class Features::Monit < Feature
 
     depends_on :file => {
                  :name => "/etc/monit/conf.d/#{name}",
-                 :content => self.header + content,
+                 :content => genii_header("Monit: #{name}") + content,
                  :mode => 0600,
                }
 
@@ -125,14 +125,5 @@ class Features::Monit < Feature
 """
     { :name => "check_#{hostname.gsub(/\./,'_')}",
       :content => content }
-  end
-
-  def header
-    """# -----------------------------------------------------
-# Monit: #{name}
-# written by genii - DO NOT HAND EDIT!
-# -----------------------------------------------------
-
-"""
   end
 end

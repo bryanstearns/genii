@@ -14,9 +14,7 @@ class Features::MysqlServer < Feature
                }
     depends_on :file => {
                  :name => "/etc/mysql/conf.d/encodings.cnf",
-                 :content => """# ------------------------------------------------
-# Force utf8 -- written by genii, DO NOT HAND EDIT
-# ------------------------------------------------
+                 :content => """#{genii_header("Force utf8")}
 [client]
 default-character-set=utf8
   
@@ -29,9 +27,7 @@ default-collation=utf8_unicode_ci
 
     depends_on :file => {
                  :name => "/etc/mysql/conf.d/pidfile.cnf",
-                 :content => """# ---------------------------------------------------------------
-# Write a pidfile for monit -- written by genii, DO NOT HAND EDIT
-# ---------------------------------------------------------------
+                 :content => """#{genii_header("Write MySQL's pidfile for Monit")}
 [mysqld]
 pid-file = /var/run/mysqld/mysqld.pid
 """

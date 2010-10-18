@@ -171,4 +171,18 @@ class Feature
     # parent for other things.
     @nothing_else_to_do = true
   end
+
+  def genii_header(msg)
+    lines = msg.split("\n")
+    genii_msg = "written by genii; DO NOT HAND EDIT"
+    lines = if lines[0].length > (75 - genii_msg.length)
+      [lines[0], genii_msg, lines[1..-1]]
+    else
+      [lines[0] + " - " + genii_msg, lines[1..-1]]
+    end.flatten
+    border = "-" * lines.map(&:length).max
+    lines.unshift(border)
+    lines << border
+    lines.map{|l| "# #{l}" }.join("\n") + "\n"
+  end
 end

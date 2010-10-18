@@ -36,11 +36,7 @@ class Features::Backup < Feature
 
   def backup_content
     # This is the file that tells nightlybackup what to do for this thing
-    """# -----------------------------------------------------
-# Backup: #{name}
-# written by genii - DO NOT HAND EDIT!
-# -----------------------------------------------------
-
+    """#{genii_header("Backup: #{name}")}
 #{configuration}
 """
   end

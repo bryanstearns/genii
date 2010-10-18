@@ -52,9 +52,7 @@ private
       ("%-16s %s" % [address, names]) unless names.empty?
     end.flatten.join("\n")
 
-    """#---------------------------------------------------
-# /etc/hosts - written by genii; DO NOT EDIT BY HAND
-#---------------------------------------------------
+    """#{genii_header("Hosts")}
 #{lines}
 
 # The following lines are desirable for IPv6 capable hosts

@@ -5,9 +5,7 @@ class Features::RubyGem < Feature
     # Suppress generation of rubydocs; make sure we get github gems too for now
     depends_on :file => {
                  :name => "/etc/gemrc",
-                 :content => """# -----------------------------------------
-# Written by genii - DO NOT EDIT IN PLACE
-# -----------------------------------------
+                 :content => """#{genii_header("Global gem configuration")}
 install: --no-rdoc --no-ri
 update: --no-rdoc --no-ri
 :sources:

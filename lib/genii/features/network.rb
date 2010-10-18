@@ -21,9 +21,7 @@ class Features::Network < Feature
 
   def apply
     File.open("/etc/network/interfaces", 'w') do |f|
-      f.write """#-------------------------------------
-# written by genii -- DO NOT HAND EDIT
-#-------------------------------------
+      f.write """#{genii_header("Network interfaces")}
 
 auto lo
 iface lo inet loopback

@@ -43,7 +43,7 @@ class Features::SendMail < Feature
     if all_mail_to
       depends_on :file => {
                    :name => "/etc/exim4/conf.d/router/01_exim4-config_redirect_all",
-                   :content => """# Redirect all mail to one address (written by genii)
+                   :content => """#{genii_header("Redirect all mail to one address")}
 redirect_all:
   driver = redirect
   data = #{all_mail_to}

@@ -48,9 +48,7 @@ class Features::ApacheVhost < Feature
 
     depends_on(:file => {
                  :name => "/etc/apache2/conf.d/nvh_#{ip.gsub('.','_')}",
-                 :content => """# -----------------------------------------------------------------------
-# port configuration for #{ip}, written by genii - DO NOT HAND EDIT
-# -----------------------------------------------------------------------
+                 :content => """#{genii_header("port configuration for #{ip}")}
 #{"Listen #{uri.port}" unless [80,443].include? uri.port}
 NameVirtualHost #{ip}:#{uri.port}
 """
@@ -157,9 +155,7 @@ NameVirtualHost #{ip}:#{uri.port}
   end
 
   def site_configuration
-    """# ------------------------------------------
-# written by genii - DO NOT EDIT IN PLACE
-# ------------------------------------------
+    """#{genii_header("site configuration for #{ip || "*"}:#{uri.port}")}
 <VirtualHost #{ip || "*"}:#{uri.port}>
   #{host_setting}#{alias_setting}
   ErrorLog /var/log/apache2/#{name}.error.log
