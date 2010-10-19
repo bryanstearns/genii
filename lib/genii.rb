@@ -243,6 +243,10 @@ Do something like:
     end
     files do |path|
       more_config = load_file(path)
+      more_config[:machines].each do |machine, config|
+        more_config[:machines][machine] = { :machine => config } \
+          unless config.is_a? Hash
+      end if more_config[:machines]
       @configuration.deep_merge!(more_config)
     end
     log(:details, "Configuration:\n#{@configuration.to_yaml}")
@@ -297,8 +301,6 @@ Do something like:
       hostname = @hostname || `hostname`.strip
       machine_settings = @configuration[:machines][hostname.to_sym]
       machine_settings ||= :default
-      machine_settings = { :machine => machine_settings }\
-        unless machine_settings.is_a? Hash
       role = machine_settings[:machine] || hostname
       @configuration.deep_merge!(@configuration[:settings])\
         if @configuration[:settings]
