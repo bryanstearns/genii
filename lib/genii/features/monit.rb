@@ -123,7 +123,7 @@ class Features::Monit < Feature
       for 3 times within 5 cycles then alert
     mode manual
 """
-    { :name => "check_#{hostname.gsub(/\./,'_')}",
+    { :name => "check_#{hostname.to_s.gsub(/\./,'_')}",
       :content => content }
   end
 end
