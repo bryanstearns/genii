@@ -74,7 +74,12 @@ module Execute
   private
     def run_raw
       begin
-        self.output = `#{full_command}`
+        begin
+          self.output = `#{full_command}`
+        rescue Exception
+          STDERR.puts "While executing '#{full_command}'..."
+          raise
+        end
         self.output = output.rstrip unless binary
         self.status = $? >> 8
         if status != 0 && retry_on_failure
