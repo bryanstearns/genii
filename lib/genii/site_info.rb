@@ -66,11 +66,7 @@ module SiteInfo
   def site_name
     @site_name ||= begin
       result = uri.host.gsub('.', '_')
-      if ssl? && (non_ssl_redirect == false)
-        result += "_ssl"
-      elsif ![80, 443].include?(uri.port)
-        result += "_#{uri.port}"
-      end
+      result += "_#{uri.port}" if ![80, 443].include?(uri.port)
       result
     end
   end
