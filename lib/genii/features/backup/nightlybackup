@@ -35,8 +35,14 @@ class NightlyBackup
     configuration = load_yaml(configuration_file)
     configuration.each {|k, v| send("#{k}=", v) }
     @contents = {}
+    $LOAD_PATH << configuration_dir unless $LOAD_PATH.include(configuration_dir)
     Dir.glob("#{configuration_dir}/*") do |path|
-      load_yaml(path).each {|k, v| @contents[k] = v }
+      case File.extname(path)
+      when "rb"
+        require File.basename(path, ".rb")
+      when "yml"
+        load_yaml(path).each {|k, v| @contents[k] = v }
+      end
     end
   end
 

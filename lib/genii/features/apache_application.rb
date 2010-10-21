@@ -33,6 +33,9 @@ class Features::ApacheApplication < Feature
   def create_dependencies
     depends_on :service_restart => { :name => :apache2 }, 
                :do_after => self
+
+    depends_on :site_permissions,
+               :do_after => machine
   end
 
   def describe_options

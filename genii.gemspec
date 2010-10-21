@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Bryan Stearns"]
-  s.date = %q{2010-10-19}
+  s.date = %q{2010-10-21}
   s.default_executable = %q{genii}
   s.description = %q{Yet another take on system setup in Ruby}
   s.email = %q{bryanstearns@gmail.com}
@@ -32,6 +32,7 @@ Gem::Specification.new do |s|
      "lib/genii/feature.rb",
      "lib/genii/features/apache_application.rb",
      "lib/genii/features/apache_vhost.rb",
+     "lib/genii/features/apt_update.rb",
      "lib/genii/features/backup.rb",
      "lib/genii/features/backup/nightlybackup",
      "lib/genii/features/cron_job.rb",
@@ -41,6 +42,7 @@ Gem::Specification.new do |s|
      "lib/genii/features/file.rb",
      "lib/genii/features/firewall.rb",
      "lib/genii/features/fonts.rb",
+     "lib/genii/features/fstab_noatime.rb",
      "lib/genii/features/groups.rb",
      "lib/genii/features/monit.rb",
      "lib/genii/features/monit/monit_top",

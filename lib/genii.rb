@@ -61,8 +61,10 @@ Usage: genii [options]
         {|@hierarchy|}
       opts.on("--serve", "Serve up a tarball for remote installation")\
         {|@serve|}
-      opts.on("--dev", "Serve a fresh tarball on each request")\
+      opts.on("--dev", "  Serve a fresh tarball on each request")\
         {|@dev_mode|}
+      opts.on("--proxied", "  Try to determine our public IP address")\
+        {|@proxied|}
       opts.on("--config FILE", "Use this config file, instead of genii.yml")\
         {|@config_file|}
       opts.on("-v", "--verbose", "Blah blah blah") do
@@ -135,6 +137,7 @@ Usage: genii [options]
     require 'webrick/https'
     require 'stringio'
     require 'openssl'
+    require 'net/http'
     Socket.do_not_reverse_lookup = true # speed things up
 
     server_config = @configuration[:serve] || {}
@@ -158,7 +161,7 @@ Usage: genii [options]
    #{@configuration[:machines].keys.map{|k| k.to_s}.sort.join("\n   ")}
 
 Do something like:
-   curl https://#{`hostname`.strip}:#{@serve_port}/genii -ku #{server_config[:user]}:#{server_config[:password]} | tar xzf -
+   curl https://#{accessible_machine_name}:#{@serve_port}/genii -ku #{server_config[:user]}:#{server_config[:password]} | tar xzf -
    cd genii
    sudo ./genii --apply
 
@@ -305,10 +308,20 @@ Do something like:
       @configuration.deep_merge!(@configuration[:settings])\
         if @configuration[:settings]
       @configuration.deep_merge!(machine_settings)
+      @configuration[:hostname] = hostname.to_s
       log(:details, "Using role \"#{role}\" for \"#{hostname}\"; " +
                     "full configuration:\n#{@configuration.inspect}")
       Machine.load(role, @configuration)
     end
+  end
+
+  def accessible_machine_name
+    begin
+      @proxied && Net::HTTP.get("whatismyipaddress.com", '/') =~ \
+                    /name="LOOKUPADDRESS" value="([^\"]+)"/ && $1
+    rescue
+      nil
+    end || `hostname`.strip
   end
 end
 

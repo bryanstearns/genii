@@ -87,6 +87,9 @@ class Features::RailsAppInstance < Feature
                  ),
                  :do_after => self
     end
+
+    depends_on :site_permissions,
+               :do_after => machine    
   end
 
   def done?
