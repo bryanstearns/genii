@@ -1,4 +1,6 @@
 class Features::Redis < Feature
+  REDIS_GEM_VERSION = "2.0.11"
+
   def create_dependencies
     depends_on :packages => {
                  :names => %w[redis-server]
@@ -7,6 +9,12 @@ class Features::Redis < Feature
                  :name => "redis",
                  :content => monit_content
                }
+
+    depends_on(:ruby_gem => {
+                 :name => :redis,
+                 :version => REDIS_GEM_VERSION
+               })\
+      if rvm
 
     nothing_else_to_do!
   end
@@ -22,5 +30,9 @@ private
   mode manual
 
 """
+  end
+
+  def rvm
+    @rvm ||= find_feature(:rvm, :anything)
   end
 end
