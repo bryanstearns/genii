@@ -3,9 +3,6 @@ require 'etc'
 
 class Features::Rvm < Feature
   # The rvm and ruby we'll default to, if no defaults are configured
-  # DEFAULT_RVM_REVISION = "70d358dc273130137ce3" # 1.0.4 9/6/2010
-  # DEFAULT_RVM_REVISION = "0ca6b4e311e17d0cd325" # 1.0.5 9/7/2010
-  # DEFAULT_RVM_REVISION = "08f0e7d43bb095270473" # paydici/rvm head 10/19/2010
   # DEFAULT_RVM_REVISION = :HEAD # just use head for now
   DEFAULT_RVM_REVISION = "1.0.15"
   DEFAULT_RUBY_VERSION = "ree-1.8.7-2010.02"
@@ -117,17 +114,13 @@ fi
     force_revision = "--revision #{revision} " \
       if (revision && revision != :HEAD)
 
-    # Grab an run an RVM system-wide install script
-    # Use HEAD's
-#    log(:noisy, execute("curl -L http://github.com/wayneeseguin/rvm/raw/master/contrib/install-system-wide > /tmp/rvm-install && " +
-#            "bash /tmp/rvm-install").output)
-
-    # Use ours
-#    log(:noisy, execute("curl -L http://github.com/paydici/rvm/raw/master/contrib/install-system-wide > /tmp/rvm-install && " +
-#            "bash /tmp/rvm-install #{force_revision}").output)
-
-    # Use the local one
-    log(:noisy, execute("bash #{File.dirname(__FILE__)}/rvm/install-system-wide #{force_revision}").output)
+    # Grab and run an RVM system-wide install script
+    installer_revision = (revision && revision != :HEAD) ? revision : "master"
+    # Use Wayne's
+    log(:noisy, execute("curl -L http://github.com/wayneeseguin/rvm/raw/#{installer_revision}/contrib/install-system-wide > /tmp/rvm-install && " +
+                        "bash /tmp/rvm-install").output)
+    # Use a local one when hacking
+    # log(:noisy, execute("bash #{File.dirname(__FILE__)}/rvm/install-system-wide #{force_revision}").output)
 
     File.open("/usr/local/rvm/gemsets/global.gems", 'w') do |f|
       f.write """
