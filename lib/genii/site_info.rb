@@ -20,8 +20,8 @@ module SiteInfo
   # We store any site-related configuration files in /site-files --
   # certificates and digest-auth files, mostly.
   #
-  # Each app's content goes in '/var/www/sites/(site_name)/(app name)';
-  # each site also has a '/var/www/sites/(site_name)/htdocs' directory
+  # Each app's content goes in '/var/www/(app name)';
+  # each site may also have a '/var/www/htdocs_(site_name)' directory
   # (where we put Passenger redirect symlinks for Rails apps based
   # at sub-URIs).
   #
@@ -75,22 +75,18 @@ module SiteInfo
     @app_name ||= "#{name}__#{site_name}"
   end
 
-  def sites_path
+  def apps_path
     "/var/www"
-  end
-
-  def site_path
-    @site_path ||= "#{sites_path}/#{site_name}"
   end
 
   def site_document_root
     @site_document_root ||= (shared_site? || document_root.nil?) \
-      ? "#{site_path}/htdocs" \
+      ? "#{apps_path}/htdocs_#{site_name}" \
       : document_root
   end
 
   def app_path
-    @app_path ||= "#{site_path}/#{name}"
+    @app_path ||= "#{apps_path}/#{name}"
   end
 
   def site_config_path

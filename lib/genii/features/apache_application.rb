@@ -13,16 +13,16 @@ class Features::ApacheApplication < Feature
   #   chain file or key file); non-SSL requests will be redirect to the SSL
   #   version unless you set non_ssl_redirect to false (or to another URL)
   # - configuration is an optional hash of extra parameters to include
-  #   in the app's configuration: for example, :configuration =>
-  #   { :RailsEnv => :development, :RailsBaseURI => path }
-  # - or, instead of configuration, proxy (actually, reverse_proxy) to
+  #   in the app's configuration; local_configuration is also included,
+  #   within a Location or Directory block.
+  # - or, instead of the configurations, proxy (actually, reverse_proxy) to
   #   a port with :proxy_to => 8080, or a full url with
   #   :proxy_to => "http://something/"
   #
   # If all you want is default redirection for non-vhost requests,
   # just pass :redirect_to => url.
   attr_accessor *SITE_OPTIONS
-  attr_accessor :redirect_to, :proxy_to, :configuration
+  attr_accessor :redirect_to, :proxy_to, :configuration, :local_configuration
 
   def initialize(options={})
     options[:url] ||= "http://localhost"
@@ -41,9 +41,10 @@ class Features::ApacheApplication < Feature
   def describe_options
     # Shorten any configuration we were given
     result = options.dup
-    if result[:configuration].is_a? String
-      result[:configuration] = result[:configuration].elided
-    end
+    result[:local_configuration] = result[:local_configuration].elided \
+      if result[:local_configuration].is_a? String
+    result[:configuration] = result[:configuration].elided \
+      if result[:configuration].is_a? String
     result
   end
 
@@ -108,20 +109,19 @@ private
     @app_configuration ||= begin
       lines = ["# App configuration for #{name} at #{url}"]
 
-      if document_root && shared_site? && uri.path != '/'
-        lines << "  Alias #{uri.path} \"#{document_root}\""
-      end
+      lines << "  Alias #{uri.path} \"#{document_root}\"" \
+        if document_root && shared_site? && uri.path != '/'
 
       if proxy_to
         lines << proxy_configuration
       else
-        configuration_content = if redirect_to
-          simple_redirection_configuration
-        elsif configuration
-          configuration
-        end
+        lines << configuration if configuration
+
+        configuration_content = redirect_to \
+          ? simple_redirection_configuration \
+          : local_configuration
         if configuration_content && configuration_content.strip.length > 0
-          lines << if (shared_site? or document_root.nil?)
+          lines << if (shared_site? || document_root.nil?)
             "  <Location #{uri.path}>\n" +
               configuration_content + "\n" +
             "  </Location>"
@@ -139,3 +139,4 @@ private
     end
   end
 end
+

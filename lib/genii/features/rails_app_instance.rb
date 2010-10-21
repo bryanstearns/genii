@@ -23,7 +23,7 @@ class Features::RailsAppInstance < Feature
   #   forces host/port instead; host is ignored without port)
   attr_accessor :database, :password, :adapter, :pool, :socket,
                 :host, :port
-  # - Extra stuff to add to our apache app configuration
+  # - Extra stuff to add to our apache app's local_configuration
   attr_accessor :apache_configuration
 
   # (Not options...)
@@ -83,7 +83,7 @@ class Features::RailsAppInstance < Feature
 
       apache_options = SITE_OPTIONS.inject({}) {|h, k| h[k] = send(k); h}
       depends_on :apache_application => apache_options.merge(
-                   :configuration => app_configuration
+                   :local_configuration => app_configuration
                  ),
                  :do_after => self
     end
