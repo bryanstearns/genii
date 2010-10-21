@@ -15,6 +15,6 @@ class Features::FstabNoatime < Feature
   end
 
   def updated_fstab
-    genii_header("/etc/fstab with noatime") + read_fstab.gsub(%r{(ext\d\s+)defaults}, "\1noatime ")
+    genii_header("/etc/fstab with noatime") + read_fstab.gsub(%r{(ext\d\s+)defaults}, '\1noatime ')
   end
 end
