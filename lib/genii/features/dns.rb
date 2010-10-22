@@ -18,12 +18,6 @@ class Features::Dns < Feature
     nothing_else_to_do!
   end
 
-  def apply
-    File.open("/etc/resolv.conf", 'w') do |f|
-      f.write(resolv_conf)
-    end
-  end
-
   def resolv_conf
     """#{genii_header("DNS configuration")}
 domain #{domain}

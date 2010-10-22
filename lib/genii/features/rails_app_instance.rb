@@ -200,38 +200,37 @@ protected
     # - copy the cache to be the first release folder
     execute("rsync -lrpt --exclude=\".git\" #{cached_copy_path}/* #{release_path}")
     revision = git_revision(cached_copy_path, repository_branch)
-    File.open("#{release_path}/REVISION", 'w') do |f|
-      f.write(revision)
-    end
-    FileUtils.symlink(log_path, "#{release_path}/log")
+    FU.write!("#{release_path}/REVISION", revision)
+    FU.symlink(log_path, "#{release_path}/log")
 
     # - make this release folder "current"
-    FileUtils.symlink(release_path, current_path)
+    FU.symlink(release_path, current_path)
 
     # - If this is a sub-URI-based app, symlink to our public folder
     #   for Passenger
     # (This only handles one-level sub-URIs for now)
-    FileUtils.symlink("#{current_path}/public", "#{site_document_root}/#{uri.path}")\
+    FU.symlink("#{current_path}/public", "#{site_document_root}/#{uri.path}")\
       if shared_site?
 
     if using_bundler?
       # Write an .rvmrc file so that our app will use its own gemset,
       # and trust it.
-#      File.open(rvmrc_path, 'w') {|f| f.puts "rvm --create default@#{name}"}
-#      FileUtils.symlink(rvmrc_path, "#{current_path}/.rvmrc")
+#      FU.write!(rvmrc_path, "rvm --create default@#{name}")
+#      FU.symlink(rvmrc_path, "#{current_path}/.rvmrc")
 #      execute("rvm rvmrc trust #{current_path}")
 
       # We want to share gems between deployments
-      FileUtils.mkdir_p(vendor_bundle_path)
-      FileUtils.symlink(vendor_bundle_path, "#{current_path}/vendor/bundle")
+      FU.mkdir_p(vendor_bundle_path)
+      FU.symlink(vendor_bundle_path, "#{current_path}/vendor/bundle")
     end
 
     # - make sure we have a tmp folders, with a pids symlink in it, and make sure it's writeable
     tmp_path = "#{current_path}/tmp"
-    FileUtils.mkdir_p(tmp_path)
-    FileUtils.symlink(pids_path, "#{tmp_path}/pids")
-    FileUtils.symlink(system_path, "#{current_path}/public/system")
-    FileUtils.chmod_R(0777, tmp_path)
+    FU.mkdir_p(tmp_path)
+    FU.symlink(pids_path, "#{tmp_path}/pids")
+    FU.symlink(system_path, "#{current_path}/public/system")
+    FU.chown_R('www-data', 'www-data', tmp_path)
+    FU.chmod_R(0777, tmp_path)
   end
 
   def database_password
@@ -293,9 +292,9 @@ protected
 #{adapter_options}
 """
       end
-      FileUtils.symlink(database_yml_path,
-                        "#{release_path}/config/database.yml",
-                        :force => true)
+      FU.symlink(database_yml_path,
+                 "#{release_path}/config/database.yml",
+                 :force => true)
     end
   end
 
@@ -324,6 +323,6 @@ protected
   end
 
   def fix_permissions
-    execute("chown -R www-data:www-data #{app_path}")
+    FU.chown_R('www-data', 'www-data', app_path)
   end
 end

@@ -22,15 +22,12 @@ class Features::SshKeys < Features::Directory
 
   def apply
     super
-    File.open("#{name}/COPIED_BY_GENII", 'w') do |f|
-      f.write("""#------------------------------------------------------------
-# #{login}'s .ssh, from genii. DO NOT EDIT IN PLACE
-#------------------------------------------------------------
-      """)
-    end
+    FU.write!("#{name}/COPIED_BY_GENII", genii_header("#{login}'s .ssh"))
+
+    # make the public files readable by others
     ssh_files = Dir.glob(File.join(name, "*"))
     public_files = ssh_files.select {|f| f =~ /(authorized_keys|BY_GENII|.pub)$/ }
-    FileUtils.chmod(0644, public_files) # make the public files readable by others
+    FU.chmod(0644, public_files)
 
     # Cache host keys from any host (or user@hosts) names we were given
     [remote_hosts].flatten.compact.each do |host|

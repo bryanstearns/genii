@@ -94,17 +94,12 @@ pid-file = /var/run/mysqld/mysqld.pid
   end
 
   def write_password(login, user, password)
-    path = my_cnf_path(login)
-    log(:progress, "Writing #{user}'s mysql password to #{path}")
-    File.open(path, 'w') do |f|
-      # Make sure no one can read it before we put the password in it
-      FileUtils.chmod(0600, path)
-      f.write("""[client]
+    password_content = """[client]
 user=#{user}
 password=#{password}
-""")
-    end
-    FileUtils.chown(login, login, path)
+"""
+    FU.write!(my_cnf_path(login), password_content,
+              :mode => 0600, :owner => login, :group => login)
   end
 
   def load_password(login)

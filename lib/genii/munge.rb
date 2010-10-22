@@ -116,7 +116,7 @@ private
       elsif to_write == :read
         File.open(raw_path_value, 'r') {|f| f.read }
       else
-        File.open(raw_path_value, 'w') {|f| f.write(to_write) } \
+        FU.write!(raw_path_value, to_write) \
           if raw_path_value
         to_write
       end

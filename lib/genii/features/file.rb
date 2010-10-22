@@ -1,6 +1,9 @@
 require 'munge'
 
 class Features::File < Feature
+  # Careful: we use a lot of the global File class's methods (::File.whatever)
+  # as well as our own class methods (File.whatever)...
+
   include FileTemplate
   include UsersAndGroups
 
@@ -102,37 +105,28 @@ private
 
   def do_unlink
     return if unlink_done?
-    log(:debug, "File: Removing-RF #{name}")
-    FileUtils.rm_rf(name)
+    FU.unlink(name)
   end
 
   def do_content
     return if content_done?
     to_dir = ::File.dirname(name)
-    unless ::File.directory?(to_dir)
-      log(:debug, "File: mkdiring-P #{to_dir}")
-      FileUtils.mkdir_p(to_dir)
-    end
+    FU.mkdir_p(to_dir) unless ::File.directory?(to_dir)
     if source
       if erb
         log(:debug, "File: template-copying #{source} to #{name} with #{erb.inspect}")
         copy_from_template(source, name, erb)
       else
-        log(:debug, "File: copying #{source} to #{name}")
-        FileUtils.copy(source, name)
+        FU.copy(source, name)
       end
     elsif touch
-      log(:debug, "File: touching #{name}")
-      FileUtils.touch(name)
+      FU.touch(name)
     elsif symlink_to
-      log(:debug, "File: symlinking #{name} to #{symlink_to}")
-      ::File.symlink(symlink_to, name)
+      FU.symlink(symlink_to, name)
     elsif content
       # Make sure we don't follow the symlink in writing our content
-      FileUtils.rm_f(name) if ::File.symlink?(name)
-
-      log(:debug, "File: writing content to #{name}")
-      ::File.open(name, 'w') {|f| f.write(content) }
+      FU.rm_f(name) if ::File.symlink?(name)
+      FU.write!(name, content)
     elsif munge_operation
       munge
     end
@@ -141,16 +135,14 @@ private
 
   def do_mode
     if !mode_done?
-      log(:debug, "File: chmoding #{name} to 0#{"%o" % mode}")
-      FileUtils.chmod(mode, name)
+      FU.chmod_file(mode, name)
       changed!
     end
   end
 
   def do_owner
     if !owner_done?
-      log(:debug, "File: chowning #{name} to #{owner}:#{group}")
-      FileUtils.chown(owner, group, name)
+      FU.chown(owner, group, name)
       changed!
     end
   end
@@ -162,7 +154,7 @@ private
     munge_options.update(:mode => munge_operation, :input => original)
     munged = Munger.munge(munge_options)
     if doit
-      File.open(name, 'w') {|f| f.write(munged)}
+      FU.write!(name, munged)
     else
       # just test whether we're done
       original == munged

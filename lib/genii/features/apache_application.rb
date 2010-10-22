@@ -54,21 +54,8 @@ class Features::ApacheApplication < Feature
 
   def apply
     log(:progress, "configuring apache")
-
-    # Write out an authfile if we're using authentication
-    unless auth_done?
-      File.open(auth_path, 'w') do |f|
-        log(:progress){"writing #{auth_path}"}
-        f.write auth_passwords
-      end
-    end
-
-    # Write the app configuration
-    FileUtils.mkdir_p(File.dirname(app_config_path))
-    File.open(app_config_path, 'w') do |f|
-      log(:progress){"writing #{app_config_path}"}
-      f.write app_configuration
-    end
+    FU.write!(auth_path, auth_passwords) unless auth_done?
+    FU.write!(app_config_path, app_configuration)
   end
 
 private

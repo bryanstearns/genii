@@ -3,33 +3,40 @@ require 'ipaddr'
 class Features::Network < Feature
   # Interface is a hash configuring the available interfaces, eg:
   # :eth0 => {
-  #   :ip => "10.0.0.1/24",
+  #   :ip => "10.0.0.1", # netmask defaults to /24
   #   :gateway => "10.0.0.2",
   # },
   # "eth0:0" => {
-  #   :ip => "10.0.0.10/24",
+  #   :ip => "10.0.12.10/17",
   # }
   # :eth1 => :dhcp
   #
   # The loopback address will be done automatically
 
-  attr_accessor :configuration
+  attr_accessor :configuration, :static_routes
+
+  def initialize(options={})
+    options[:static_routes] ||= []
+    super(options)
+  end
 
   def done?
     File.read("/etc/network/interfaces") =~ /genii/
   end
 
   def apply
-    File.open("/etc/network/interfaces", 'w') do |f|
-      f.write """#{genii_header("Network interfaces")}
+    FU.write!("/etc/network/interfaces", interfaces_content)
+    execute("/etc/init.d/networking restart")
+  end
+
+  def interfaces_content
+    """#{genii_header("Network interfaces")}
 
 auto lo
 iface lo inet loopback
 
 #{interface_details}
 """
-    end
-    execute("/etc/init.d/networking restart")
   end
 
   def interface_details
@@ -50,7 +57,7 @@ iface lo inet loopback
       results
     end.flatten.join("\n")
     auto_list = "auto #{auto_list.join(' ')}" unless auto_list.empty?
-    "#{auto_list}\n\n#{interfaces}"
+    "#{auto_list}\n\n#{interfaces}\n#{static_routes.join("\n")}"
   end
 
   def ip_netmask(ip)

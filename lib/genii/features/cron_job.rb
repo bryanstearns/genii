@@ -71,14 +71,16 @@ private
   end
 
   def write_crontab(entries)
-    temp_file = "/tmp/genii.crontab"
-    File.open(temp_file, 'w') do |f|
-      entries.each do |command, schedule|
-        f.write("#{schedule} #{command}\n")
-      end
+    temp_file = "/tmp/genii.crontab.#{Process.pid}"
+    begin
+      crontab_content = entries.map do |command, schedule|
+        "#{schedule} #{command}"
+      end.join("\n")
+      FU.write!(temp_file, crontab_content)
+      execute("crontab -u #{login} #{temp_file}")
+    ensure
+      FileUtils.rm_f(temp_file)
     end
-    execute("crontab -u #{login} #{temp_file}")
-    FileUtils.rm_f(temp_file)
     @parsed_crontab = nil
   end
 end

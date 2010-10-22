@@ -106,7 +106,7 @@ fi
 [[ -s '/usr/local/rvm/scripts/rvm' ]] && source '/usr/local/rvm/scripts/rvm' && source '/usr/local/rvm/scripts/completion'
 """,
       :tag => "# RVMend ")
-    File.open(path, 'w') {|f| f.write(output) }
+    FU.write!(path, output)
   end
 
   def apply_rvm
@@ -122,14 +122,13 @@ fi
     # Use a local one when hacking
     # log(:noisy, execute("bash #{File.dirname(__FILE__)}/rvm/install-system-wide #{force_revision}").output)
 
-    File.open("/usr/local/rvm/gemsets/global.gems", 'w') do |f|
-      f.write """
+    global_gems = """
 bundler
 mysql -v2.8.1
 rake
 ruby-debug
 """
-    end
+    FU.write!("/usr/local/rvm/gemsets/global.gems", global_gems)
 
     # Create gemsets automatically on first use
     Munger.munge(:path => "/etc/rvmrc", :mode => :before, :pattern => /^fi/,

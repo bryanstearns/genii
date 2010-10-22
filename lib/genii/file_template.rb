@@ -17,7 +17,6 @@ module FileTemplate
   end
 
   def copy_from_template(template, destination, variables=nil)
-    output = process_template(template, variables)
-    File.open(destination, 'w') {|f| f.write(output) }
+    FU.write!(destination, process_template(template, variables))
   end
 end

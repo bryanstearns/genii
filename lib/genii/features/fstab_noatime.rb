@@ -6,7 +6,7 @@ class Features::FstabNoatime < Feature
 
   def apply
     updated = updated_fstab
-    File.open('/etc/fstab', 'w') {|f| f.write(updated) }
+    File.write!('/etc/fstab', updated)
     execute("mount -o noatime,remount,rw /dev/sda1")
   end
 
@@ -15,6 +15,7 @@ class Features::FstabNoatime < Feature
   end
 
   def updated_fstab
-    genii_header("/etc/fstab with noatime") + read_fstab.gsub(%r{(ext\d\s+)defaults}, '\1noatime ')
+    genii_header("/etc/fstab with noatime") + \
+      read_fstab.gsub(%r{(ext\d\s+)defaults}, '\1noatime ')
   end
 end
