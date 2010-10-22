@@ -57,6 +57,8 @@ Usage: genii [options]
       end
       opts.on("--apply", "Actually install everything")\
         {|@apply|}
+      opts.on("--all", "Check all features' generation, don't apply")\
+        {|@all|}
       opts.on("--hierarchy", "Show me the hierarchy (instead of the list)")\
         {|@hierarchy|}
       opts.on("--serve", "Serve up a tarball for remote installation")\
@@ -96,14 +98,22 @@ Usage: genii [options]
       end
       add_load_paths
 
-      feature_list = (@hierarchy ? describe_dependencies : describe_features)
-      host = machine.name
-      host += " (default)" if machine.class.name == "DefaultMachine"
-      log(:progress, "On #{host}, will install these features:\n  " +
-                     feature_list.join("\n  "))
+      if @all
+        @configuration[:machines].keys.map(&:to_s).sort.each do |@hostname|
+          @machine = nil
+          log(:progress, "Checking #{@hostname}...")
+          machine.features_to_install
+        end
+        log(:progress, "All machines good.")
+      else
+        feature_list = (@hierarchy ? describe_dependencies : describe_features)
+        host = machine.name
+        host += " (default)" if machine.class.name == "DefaultMachine"
+        log(:progress, "On #{host}, will install these features:\n  " +
+                       feature_list.join("\n  "))
 
-      install_features if @apply
-
+        install_features if @apply
+      end
       return 0
     rescue Exception => e
       STDERR.puts "#{e.message}\n#{e.backtrace[0].strip}"
