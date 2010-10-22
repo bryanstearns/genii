@@ -3,7 +3,18 @@ class Features::Backup < Feature
   attr_accessor :backup_dir, :s3_config_path, :encryption_key_path
 
   # Others just use these to include something in the nightly backup
-  attr_accessor :name, :configuration
+  attr_accessor :name, :comment, :configuration
+
+  # Backup:
+  # A bunch of things contribute to it:
+  # - database backups
+  # - system, apache, rails logs
+  # - RRD databases
+  # - 
+  # each contribution is
+  # - tarred
+  # - (optionally) encrypted
+  # - (optionally) copied to a date-stamped S3 bucket
 
   def create_dependencies
     depends_on :packages => { :name => "s3cmd" }
@@ -51,14 +62,15 @@ class Features::Backup < Feature
   end
 
   def encryption_key_path_on_target
-    "/etc/nightlybackup/encryption_key.pem"
+    File.join("/etc/nightlybackup", File.basename(encryption_key_path))
   end
 
   def backup_content
     # This is the file that tells nightlybackup what to do for this thing
-    """#{genii_header("Backup: #{name}")}
-#{configuration}
-"""
+    [genii_header("Backup: #{name}"),
+     comment && "# #{comment}",
+     configuration.is_a?(Hash) ? configuration.to_yaml : configuration
+    ].compact.join("\n")
   end
 
   def nightlybackup_yml_content
@@ -80,7 +92,7 @@ class Features::Backup < Feature
     if backup_dir
       "backup_dir: #{backup_dir}"
     else
-      "# backup_dir: /var/spool/backup_snapshots"
+      "# backup_dir: /var/spool/backup_snapshots (default)"
     end
   end
 
@@ -102,7 +114,7 @@ class Features::Backup < Feature
       ]
     else
       [
-        "# s3_access_key_id: ...",
+        "# s3_access_key_id: ... (no copy to S3 by default)",
         "# s3_secret_access_key: ..."
       ]
     end.join("\n")

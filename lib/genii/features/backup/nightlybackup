@@ -21,6 +21,26 @@ def die(msg)
   exit(1)
 end
 
+class String
+  def classify
+    # Fake ActiveSupport's classify:
+    # murky_soup --> MurkySoup
+    self.downcase.split('_').map do |word|
+      word[0..0].upcase + word[1..-1]
+    end.join
+  end
+
+  def constantize
+    # Fake ActiveSupport's constantize
+    names = self.split('::')
+    constant = Object
+    names.each do |name|
+      constant = constant.const_defined?(name) ? constant.const_get(name) : constant.const_missing(name)
+    end
+    constant
+  end
+end
+
 class NightlyBackup
   # Values we load from our configuration file
   attr_accessor :s3_access_key_id, :s3_secret_access_key,
@@ -35,11 +55,14 @@ class NightlyBackup
     configuration = load_yaml(configuration_file)
     configuration.each {|k, v| send("#{k}=", v) }
     @contents = {}
-    $LOAD_PATH << configuration_dir unless $LOAD_PATH.include(configuration_dir)
+    $LOAD_PATH << configuration_dir \
+      unless $LOAD_PATH.include?(configuration_dir)
     Dir.glob("#{configuration_dir}/*") do |path|
       case File.extname(path)
       when "rb"
-        require File.basename(path, ".rb")
+        item = File.basename(path, ".rb")
+        require item
+        contents[item] = item.classify.constantize.new
       when "yml"
         load_yaml(path).each {|k, v| @contents[k] = v }
       end
@@ -109,6 +132,7 @@ class NightlyBackup
   end
 
   def add_to_backup(item)
+    puts "Adding #{item.inspect}"
   end
 
 
