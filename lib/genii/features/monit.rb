@@ -11,6 +11,9 @@ class Features::Monit < Feature
   attr_accessor :name, :content
 
   def create_dependencies
+    # Don't run monit on 'testing' machines at all
+    return if machine.configuration[:testing] == true
+
     depends_on :packages => { :name => 'monit' }
 
     depends_on :file => {
