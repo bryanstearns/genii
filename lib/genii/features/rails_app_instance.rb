@@ -229,8 +229,7 @@ protected
     FU.mkdir_p(tmp_path)
     FU.symlink(pids_path, "#{tmp_path}/pids")
     FU.symlink(system_path, "#{current_path}/public/system")
-    FU.chown_R('www-data', 'www-data', tmp_path)
-    FU.chmod_R(0777, tmp_path)
+    fix_permissions
   end
 
   def database_password
@@ -323,6 +322,7 @@ protected
   end
 
   def fix_permissions
-    FU.chown_R('www-data', 'www-data', app_path)
+    FU.fix!(app_path, :owner => 'www-data', :group => 'www-data',
+                      :dir_mode => 0775, :file_mode => 0664)
   end
 end

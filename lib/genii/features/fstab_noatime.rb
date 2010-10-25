@@ -6,7 +6,7 @@ class Features::FstabNoatime < Feature
 
   def apply
     updated = updated_fstab
-    File.write!('/etc/fstab', updated)
+    FU.write!('/etc/fstab', updated)
     execute("mount -o noatime,remount,rw /dev/sda1")
   end
 

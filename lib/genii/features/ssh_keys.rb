@@ -27,7 +27,7 @@ class Features::SshKeys < Features::Directory
     # make the public files readable by others
     ssh_files = Dir.glob(File.join(name, "*"))
     public_files = ssh_files.select {|f| f =~ /(authorized_keys|BY_GENII|.pub)$/ }
-    FU.chmod(0644, public_files)
+    FU.chmod_file(0644, public_files)
 
     # Cache host keys from any host (or user@hosts) names we were given
     [remote_hosts].flatten.compact.each do |host|
