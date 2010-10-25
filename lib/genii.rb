@@ -225,12 +225,27 @@ Do something like:
           "echo \"#!/bin/sh\nsudo gem/bin/genii \\$*\" >#{ball_dir}/genii",
           "chmod +x #{ball_dir}/genii"
         ].join(" && "))
+        FU.write!("#{ball_dir}/genii", genii_script_content,
+                  :mode => 0755)
         tar_cmd = "tar czf - #{excludes} genii"
         execute(tar_cmd, :binary => true, :cwd => tar_dir).output
       ensure
         FileUtils.rm_rf(tar_dir)
       end
     end
+  end
+
+  def genii_script_content
+    """#!/bin/sh
+which ruby >/dev/null
+if [ $? -ne 0 ]; then
+  echo installing prerequisite packages...
+  apt-get install -qqy --force-yes \
+    ruby ruby1.8 libxmlrpc-ruby libopenssl-ruby rubygems \
+    libshadow-ruby1.8 rdoc curl
+fi
+sudo gem/bin/genii $*
+"""
   end
 
   def discard_tarball
