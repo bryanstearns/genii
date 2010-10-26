@@ -126,7 +126,23 @@ class Feature
   def machine
     Machine.current
   end
-  
+
+  def configuration
+    machine.configuration
+  end
+
+  def checklist(message)
+    machine.checklist(message)
+  end
+
+  def find_machine(role)
+    role = role.to_s
+    configuration[:machines].each do |machine, configuration|
+      return machine if configuration[:machine] == role
+    end
+    nil
+  end
+
   def locate_file(subpath, &block)
     machine.locate_file(subpath, &block)
   end

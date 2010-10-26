@@ -7,11 +7,15 @@ class Features::FstabNoatime < Feature
   def apply
     updated = updated_fstab
     FU.write!('/etc/fstab', updated)
-    execute("mount -o noatime,remount,rw /dev/sda1")
+    execute("mount -o noatime,remount,rw #{slash_device}")
   end
 
   def read_fstab
     @read_fstab ||= IO.read("/etc/fstab")
+  end
+
+  def slash_device
+    %r[^(/dev/\S+) on / ].match(execute('mount').output)[1]
   end
 
   def updated_fstab

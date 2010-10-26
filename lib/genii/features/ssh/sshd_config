@@ -53,6 +53,8 @@ ChallengeResponseAuthentication no
 
 # Change to no to disable tunnelled clear text passwords
 #PasswordAuthentication yes
+# BJS: added:
+PasswordAuthentication no
 
 # Kerberos options
 #KerberosAuthentication no

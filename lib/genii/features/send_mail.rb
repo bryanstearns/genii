@@ -49,6 +49,7 @@ redirect_all:
   data = #{all_mail_to}
 """
                  }
+      checklist("stop forcing mail: rm /etc/exim4/conf.d/router/01_exim4-config_redirect_all")
     end
 
     depends_on :monit => {
@@ -76,7 +77,9 @@ private
   with pidfile /var/run/exim4/exim.pid
   start program = \"/etc/init.d/exim4 start\"
   stop program = \"/etc/init.d/exim4 stop\"
-  if failed host 127.0.0.1 port 25 protocol smtp then restart
+  # Don't do protocol checks; monit's timing seems off,
+  # leading to false failures; without this; we just watch the pidfile
+  # if failed host 127.0.0.1 port 25 protocol smtp then restart
   if 3 restarts within 5 cycles then timeout
   mode manual
 

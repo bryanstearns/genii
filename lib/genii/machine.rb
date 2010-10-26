@@ -3,7 +3,7 @@ require 'socket'
 
 
 class Machine < Feature
-  attr_reader :name, :configuration, :all_features
+  attr_reader :name, :configuration, :all_features, :checklist_messages
 
   def self.load(name, configuration)
     # Given a hostname, find a Machine object to use to set it up.
@@ -31,6 +31,7 @@ class Machine < Feature
     @name = name
     @all_features = []
     @configuration = configuration
+    @checklist_messages = []
   end
 
   def create_dependencies
@@ -75,8 +76,7 @@ class Machine < Feature
       end
     end
 
-    # Not here; ask the server
-    # TODO
+    # Not here; TODO: ask the server (to avoid having to pre-download secrets)
     raise Errno::ENOENT, "Not found locally or on server - #{subpath}"
   end
 
@@ -118,6 +118,10 @@ class Machine < Feature
 
   def describe
     "Machine name=\"#{name}\"#{' (default)' if self.class.name == 'DefaultMachine'}"
+  end
+
+  def checklist(message)
+    checklist_messages << message
   end
 
   def local_ip

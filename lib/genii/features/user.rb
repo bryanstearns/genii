@@ -10,6 +10,7 @@ class Features::User < Feature
       unless login
     self.password ||= 'PASSWORD LOGIN DISABLED'
     self.name ||= login
+    self.shell ||= "/bin/bash"
   end
 
   def apply

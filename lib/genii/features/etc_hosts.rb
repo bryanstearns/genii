@@ -9,8 +9,8 @@ class Features::EtcHosts < Feature
   def initialize(options={})
     super(options)
     self.aliases ||= {}
-    self.hostname ||= `hostname`.strip
-    self.fqdn ||= `hostname --fqdn`.strip
+    self.hostname ||= configuration[:hostname]
+    self.fqdn ||= "#{hostname}.#{configuration[:domain]}"
   end
 
   def create_dependencies
@@ -18,6 +18,12 @@ class Features::EtcHosts < Feature
                  :name => "/etc/hosts",
                  :content => new_content
                }
+    depends_on :file => {
+                 :name => "/etc/hostname",
+                 :content => "#{configuration[:hostname]}\n"
+               }
+    depends_on :service => { :name => :hostname },
+               :do_after => self
     nothing_else_to_do!
   end
 

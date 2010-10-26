@@ -12,7 +12,7 @@ class Features::Monit < Feature
 
   def create_dependencies
     # Don't run monit on 'testing' machines at all
-    return if machine.configuration[:testing] == true
+    return if configuration[:testing] == true
 
     depends_on :packages => { :name => 'monit' }
 
@@ -69,7 +69,7 @@ class Features::Monit < Feature
 
   def self.common(options={})
     options[:interval] = 180 # checking every three minutes is enough
-    options[:notify] ||= "root@#{`hostname --fqdn`.strip}"
+    options[:notify] ||= "root@#{configuration[:hostname]}.#{configuration[:domain]}"
     options[:notify_return] ||= options[:notify]
     options[:mail_server] ||= "localhost"
     options[:disk_threshold] ||= 70
@@ -80,6 +80,7 @@ class Features::Monit < Feature
   set eventqueue basedir /var/spool/monit
 
   set mailserver #{options[:mail_server]}
+
   set alert #{options[:notify]}
     not { action, instance }
     with mail-format { from: #{options[:notify_return]} }

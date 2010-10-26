@@ -8,7 +8,7 @@ class Features::Search < Feature
     depends_on :packages => { :name => sphinxsearch }
 
     depends_on :monit => {
-                 :name => "exim4",
+                 :name => "sphinx",
                  :content => monit_content
                },
                :do_after => self

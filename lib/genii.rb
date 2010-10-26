@@ -321,7 +321,11 @@ sudo gem/bin/genii $*
       seconds = seconds % d
       sprintf("%02d", result)
     end.join(':')
-    log(:progress, "Done in #{duration}")
+
+    checklist = unless machine.checklist_messages.empty?
+      "; checklist:\n -- #{machine.checklist_messages.join("\n -- ")}"
+    end
+    log(:progress, "Done in #{duration}#{checklist}")
   end
 
   def machine

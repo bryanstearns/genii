@@ -59,7 +59,7 @@ private
 
   def enable
     execute("ufw default deny")
-    execute("ufw enable")
+    execute("yes | ufw enable")
   end
 
   def enable_port

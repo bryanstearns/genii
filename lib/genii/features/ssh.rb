@@ -15,13 +15,14 @@ class Features::Ssh < Feature
 
     depends_on :service => { :name => :ssh }
 
-    depends_on :firewall => { :tcp => 23 } # TODO: remove
-
-    unless machine.configuration[:save_telnet]
+    unless configuration[:save_telnet]
       depends_on :packages => {
                    :name => :telnetd,
                    :uninstall => true
                  }, :do_after => self
+    else
+      # open the telnet port
+      depends_on :firewall => { :tcp => 23 }
     end
 
     depends_on :monit => {
