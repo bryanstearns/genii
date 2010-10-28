@@ -156,6 +156,7 @@ NameVirtualHost #{ip}:#{uri.port}
 
   def site_configuration
     """#{genii_header("site configuration for #{ip || "*"}:#{uri.port}")}
+#{listen_setting}
 <VirtualHost #{ip || "*"}:#{uri.port}>
   #{host_setting}#{alias_setting}
   ErrorLog /var/log/apache2/#{name}.error.log
@@ -170,6 +171,10 @@ NameVirtualHost #{ip}:#{uri.port}
 </VirtualHost>
 #{non_ssl_redirect_configuration}
 """
+  end
+
+  def listen_setting
+    "Listen #{uri.port}" unless [80,443].include? uri.port
   end
 
   def ssl_configuration

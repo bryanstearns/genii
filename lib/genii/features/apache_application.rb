@@ -107,7 +107,8 @@ private
         configuration_content = redirect_to \
           ? simple_redirection_configuration \
           : local_configuration
-        if configuration_content && configuration_content.strip.length > 0
+        if document_root || (configuration_content && \
+                             configuration_content.strip.length > 0)
           lines << if (shared_site? || document_root.nil?)
             "  <Location #{uri.path}>\n" +
               configuration_content + "\n" +
@@ -115,7 +116,7 @@ private
           else
             "  DocumentRoot #{document_root}\n" +
             "  <Directory #{document_root}>\n" +
-              configuration_content + "\n" +
+            "    #{configuration_content}\n" +
             "  </Directory>"
           end
         end
