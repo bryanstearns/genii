@@ -111,7 +111,7 @@ private
                              configuration_content.strip.length > 0)
           lines << if (shared_site? || document_root.nil?)
             "  <Location #{uri.path}>\n" +
-              configuration_content + "\n" +
+            "    #{configuration_content}\n" +
             "  </Location>"
           else
             "  DocumentRoot #{document_root}\n" +
