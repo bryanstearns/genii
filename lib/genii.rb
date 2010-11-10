@@ -210,7 +210,7 @@ Do something like:
     @tarball ||= begin
       tar_dir = "/tmp/genii.tar.#{$$}"
       begin
-        dont_serve = %w[.git]
+        dont_serve = %w[.git .idea]
         dont_serve += @configuration[:secrets] if @configuration[:secrets]
         dont_serve += @configuration[:do_not_serve] if @configuration[:do_not_serve]
         excludes = dont_serve.map{|x| "--exclude #{x}"}.join(' ')
@@ -219,7 +219,7 @@ Do something like:
         ball_dir = "#{tar_dir}/genii"
         FileUtils.mkdir_p(ball_dir)
         execute([
-          "cp -R #{source_dir}/* #{ball_dir}",
+          "cp -RL #{source_dir}/* #{ball_dir}",
           "cp -R #{gem_dir} #{ball_dir}/gem",
           "cp -f #{@config_file} #{ball_dir}/genii.yml",
           "echo \"#!/bin/sh\nsudo gem/bin/genii \\$*\" >#{ball_dir}/genii",
@@ -331,9 +331,11 @@ sudo gem/bin/genii $*
   def machine
     @machine ||= begin
       hostname = @hostname || `hostname`.strip
-      machine_settings = @configuration[:machines][hostname.to_sym]
-      machine_settings ||= :default
-      role = machine_settings[:machine] || hostname
+      machine_settings = @configuration[:machines][hostname.to_sym] || \
+                         @configuration[:machines][:default]
+      abort("No configuration found for #{hostname}") \
+        unless machine_settings
+      role = machine_settings[:machine]
       @configuration.deep_merge!(@configuration[:settings])\
         if @configuration[:settings]
       @configuration.deep_merge!(machine_settings)
