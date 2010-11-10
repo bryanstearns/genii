@@ -82,6 +82,8 @@ class FU
       FU.chown(options[:owner], options[:group], name) \
         if (options[:owner] || options[:group])
       f.write(content)
+      # Make sure the file ends with a newline (or is empty)
+      f.write("\n") unless [nil, "\n"[-1]].include?(content[-1])
     end
   end
 
