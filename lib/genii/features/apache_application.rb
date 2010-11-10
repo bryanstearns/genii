@@ -21,7 +21,8 @@ class Features::ApacheApplication < Feature
   #
   # If all you want is default redirection for non-vhost requests,
   # just pass :redirect_to => url.
-  attr_accessor *SITE_OPTIONS
+  #
+  # We accept site_info's options, plus:  
   attr_accessor :redirect_to, :proxy_to, :configuration, :local_configuration
 
   def initialize(options={})

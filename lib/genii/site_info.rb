@@ -39,7 +39,7 @@ module SiteInfo
   #   we're a backend instance only. Otherwise, we pass these to
   #   set up our apache_application
   SITE_OPTIONS = [:url, :name, :document_root,
-                  :auth_users, :auth_realm, 
+                  :auth_users, :auth_realm, :auth_type,
                   :ssl_certificate_file, :ssl_certificate_key_file,
                   :ssl_certificate_chain_file, :non_ssl_redirect,
                   :force_shared]
@@ -110,10 +110,20 @@ module SiteInfo
     !auth_users || File.exist?(auth_path)
   end
 
+  def auth_salt
+    @letters ||= [*'a'..'z'] + [*'A'..'Z'] + [*'0'..'9'] + %w(/ .)
+    @letters[rand @letters.length] + @letters[rand @letters.length]
+  end
+
   def auth_passwords
     @auth_passwords ||= auth_users.map do |user, password|
-      hash = Digest::MD5.new.update("#{user}:#{auth_realm}:#{password}").hexdigest
-      "#{user}:#{auth_realm}:#{hash}"
+      case (auth_type || :digest)
+      when :digest
+        hash = Digest::MD5.new.update("#{user}:#{auth_realm}:#{password}").hexdigest
+        "#{user}:#{auth_realm}:#{hash}"
+      when :basic
+        "#{user}:#{password.crypt(auth_salt)}"
+      end
     end.join("\n")
   end
   
@@ -121,7 +131,7 @@ module SiteInfo
     @auth_configuration ||= if auth_users
       """
   <Location #{uri.path}>
-    AuthType Digest
+    AuthType #{(auth_type || :digest).to_s.capitalize}
     AuthName \"#{auth_realm}\"
     AuthUserFile \"#{auth_path}\"
     require valid-user

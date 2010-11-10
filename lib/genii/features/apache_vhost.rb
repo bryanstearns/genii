@@ -14,10 +14,9 @@ class Features::ApacheVhost < Feature
   #
 
   # We disable these modules
-  DISABLE_MODULES = %w[auth_basic.load autoindex.load autoindex.conf
-                       status.load status.conf]
+  DISABLE_MODULES = %w[autoindex.load autoindex.conf status.load status.conf]
   # We enable these modules
-  ENABLE_MODULES = %w[auth_digest.load proxy.load proxy.conf proxy_http.load
+  ENABLE_MODULES = %w[auth_digest.load proxy.load proxy.conf proxy_http.load 
                       rewrite.load ssl.load ssl.conf]
 
   # site_info's, plus:
