@@ -116,8 +116,11 @@ Usage: genii [options]
       end
       return 0
     rescue Exception => e
-      STDERR.puts "#{e.message}\n#{e.backtrace[0].strip}"
-      log(:noisy, "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+      long_msg = "#{e.message}\n  #{e.backtrace.join("\n  ")}"
+      short_msg = (@verbose > 0) ? long_msg : \
+        "#{e.message}\n  #{e.backtrace[0].strip}"
+      STDERR.puts short_msg
+      log(:noisy, "Exception: #{e.class}: #{long_msg}")
       return 1
     end
   end
@@ -153,6 +156,7 @@ Usage: genii [options]
     server_config = @configuration[:serve] || {}
     server_config[:user] ||= 'genii'
     server_config[:password] ||= 'genii'
+    @serve_port = server_config[:port] if server_config[:port]
 
     # Creating the server creates a self-signed SSL cert, which is noisy
     # on stderr - silence it.
