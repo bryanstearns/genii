@@ -26,7 +26,8 @@ class Features::Monit < Feature
                }
     depends_on :file => {
                  :name => '/etc/monit/monitrc',
-                 :append => {
+                 :replace_or_append => {
+                   :pattern => %r'^include /etc/monit/conf\.d/\*$',
                    :content => "include /etc/monit/conf.d/*",
                    :tag => "# "
                  }
