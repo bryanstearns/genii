@@ -16,12 +16,12 @@ class FU
 
   def self.chown(owner, group, names)
     log(:debug, "chown #{owner}:#{group} #{names}")
-    FileUtils.chown(owner, group, names)
+    FileUtils.chown(owner.to_s, group.to_s, names)
   end
 
   def self.chown_R(owner, group, names)
     log(:debug, "chown_R #{owner}:#{group} #{names}")
-    FileUtils.chown_R(owner, group, names)
+    FileUtils.chown_R(owner.to_s, group.to_s, names)
   end
 
   def self.copy(source, name)
