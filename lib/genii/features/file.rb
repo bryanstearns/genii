@@ -9,7 +9,7 @@ class Features::File < Feature
 
   # Options we accept: one of these operation modes...
   MODES = :content, :source, :symlink_to, :touch, :unlink,
-          :before, :after, :append, :replace
+          :before, :after, :append, :replace, :replace_or_append
   attr_accessor *MODES
   # Plus these:
   attr_accessor :name, :erb, :group, :mode, :owner
@@ -28,7 +28,9 @@ class Features::File < Feature
       abort "Can't specify #{oops.inspect} on symlinks" if oops.any?
       self.symlink_to = ::File.expand_path(symlink_to)
     else
-      self.munge_operation = [:before, :after, :replace, :append].detect {|o| options[o]}
+      self.munge_operation = \
+        [:before, :after, :replace, :append, :replace_or_append].\
+        detect {|o| options[o]}
       self.source &&= RelativePath.find(source)
       self.owner ||= :root
       self.group ||= :root
