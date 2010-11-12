@@ -60,19 +60,23 @@ class Munger
 
     result = []
     skipping = nil
-    needMatch = [:before, :replace, :after].include? mode
+    needMatch = [:before, :replace, :after, :replace_or_append].include? mode
     input.split("\n").each do |l|
       if skipping
         if l == endTag
           puts "Done skipping: #{l}" if verbose
           skipping = nil
-          result << content if mode == :replace
+          if [:replace, :replace_or_append].include?(mode)
+            puts "Inserting content" if verbose
+            result << content
+          end
         else
           puts "Skipping: #{l}" if verbose
         end
       elsif l == startTag
         puts "Start skipping: #{l}" if verbose
         skipping = true
+        needMatch = nil
       else
         matched = needMatch && pattern.match(l)
         if mode == :before && matched
@@ -80,8 +84,8 @@ class Munger
           result << content
           needMatch = nil
         end
-        if mode == :replace && matched
-          puts "Matched (replace): replacing #{l}" if verbose
+        if [:replace, :replace_or_append].include?(mode) && matched
+          puts "Matched (#{mode}): replacing #{l}" if verbose
           result << content
           needMatch = nil
         else
@@ -96,7 +100,7 @@ class Munger
       end
     end
 
-    if mode == :append
+    if mode == :append or (mode == :replace_or_append && needMatch)
       puts "Appending..." if verbose
       result << content
     end
@@ -138,6 +142,7 @@ if $0 == __FILE__
         opts.on("--after PATTERN", "Insert after the line matching PATTERN") {|@pattern| set_mode(:after) }
         opts.on("--replace PATTERN", "Replace the line matching PATTERN") {|@pattern| set_mode(:replace) }
         opts.on("--append", "Append to the file") { set_mode(:append) }
+        opts.on("--replace-or-append PATTERN", "Replace the line matching PATTERN, or append if not found") {|@pattern| set_mode(:replace_or_append) }
 
         opts.on("--tag TAG", "Mark our insertion with this TAG") {|@tag|}
         opts.on("--input INPUT", "The filename to read (and write back to, if no --output specified); '-' for stdin") \
@@ -239,6 +244,52 @@ Existing line number three
 # AfterThreeTest (genii start)
 New stuff for after line three
 # AfterThreeTest (genii end)
+""", @text
+    end
+
+    def test_replace
+      @text = Munger.munge(:mode => :replace, :tag => "# ReplaceTest",
+                           :pattern => "line number two",
+                           :input => @text,
+                           :content => "This is some stuff to replace with",
+                           :verbose => @verbose)
+      my_assert_equal \
+        """Existing line number one
+# ReplaceTest (genii start)
+This is some stuff to replace with
+# ReplaceTest (genii end)
+Existing line number three
+""", @text
+    end
+
+    def test_replace_or_append_replacing
+      @text = Munger.munge(:mode => :replace_or_append, :tag => "# ReplaceOrAppendTest",
+                           :pattern => "line number two",
+                           :input => @text,
+                           :content => "This is some stuff to replace with",
+                           :verbose => @verbose)
+      my_assert_equal \
+        """Existing line number one
+# ReplaceOrAppendTest (genii start)
+This is some stuff to replace with
+# ReplaceOrAppendTest (genii end)
+Existing line number three
+""", @text
+    end
+
+    def test_replace_or_append_appending
+      @text = Munger.munge(:mode => :replace_or_append, :tag => "# ReplaceOrAppendTest",
+                           :pattern => "does not exist",
+                           :input => @text,
+                           :content => "This is some stuff to replace with",
+                           :verbose => @verbose)
+      my_assert_equal \
+        """Existing line number one
+Existing line number two
+Existing line number three
+# ReplaceOrAppendTest (genii start)
+This is some stuff to replace with
+# ReplaceOrAppendTest (genii end)
 """, @text
     end
 
