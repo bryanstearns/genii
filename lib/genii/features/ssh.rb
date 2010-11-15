@@ -13,6 +13,17 @@ class Features::Ssh < Feature
 
     depends_on :firewall => { :tcp => 22 }
 
+    # Install host keys for this server, if we have them
+    key_dir = RelativePath.find("ssh_keys/#{configuration[:hostname]}", :ignore_missing => true)
+    Dir.glob("#{key_dir}/ssh_host*").each do |path|
+      filename = File.basename(path)
+      depends_on :file => {
+                   :name => "/etc/ssh/#{filename}",
+                   :source => path,
+                   :mode => /\.pub$/.match(filename) ? 0644 : 0600,
+                 }
+    end if key_dir
+
     depends_on :service => { :name => :ssh }
 
     unless configuration[:save_telnet]
