@@ -1,10 +1,38 @@
 #!/usr/bin/env ruby
 #
-# Make a nightly backup
+# Make a nightly backup, based on individual configuration files of things
+# to be backed up or archived, eg:
+# - database backups
+# - system, apache, mail, rails logs
+# - RRD databases
+# - wiki content
+# - hudson build history & stats
+#
+# each contribution is
+# - (by default) tarred
+# - (by default) encrypted
+# - (optionally) copied to a date-stamped S3 bucket
+# - (optionally) rotated, with...
+# - (optional) .. flushing to keep a recent set of a given size
+#
+# Each thing is defined in a file in the configuration directory; it's either:
+# - a .yml file containing a hash with these attributes (which are used as the
+# options to initialize a generic BackupItem):
+#
+# - or a .rb file containing a BackupItem subclass that can be initialized without
+# extra options.
+#
+# On S3, we keep
+# - per-item per-host backup buckets named eg "paydici_live.cyan.paydici.com"
+# - per-item per-host archive buckets named eg "syslog.cyan.paydici.com"
 
 require 'fileutils'
 require 'yaml'
 require 'syslog'
+require 'optparse'
+require 'rubygems'
+require 's3'
+require 'ruby-debug'
 
 def log(msg)
   if STDOUT.isatty
@@ -41,54 +69,151 @@ class String
   end
 end
 
-class NightlyBackup
-  # Values we load from our configuration file
-  attr_accessor :s3_access_key_id, :s3_secret_access_key,
-                :encryption_key_path, :backup_dir
-
-  # Other values
-  attr_accessor :contents
-
-  def initialize
-    backup_dir ||= "/var/spool/backup_snapshots"
-
-    configuration = load_yaml(configuration_file)
-    configuration.each {|k, v| send("#{k}=", v) }
-    @contents = {}
-    $LOAD_PATH << configuration_dir \
-      unless $LOAD_PATH.include?(configuration_dir)
-    Dir.glob("#{configuration_dir}/*") do |path|
-      case File.extname(path)
-      when "rb"
-        item = File.basename(path, ".rb")
-        require item
-        contents[item] = item.classify.constantize.new
-      when "yml"
-        load_yaml(path).each {|k, v| @contents[k] = v }
+module Execute
+  def execute(command)
+    # Run a shell command in a subprocess and return its standard output
+    output = IO.popen("(#{command}) 2>&1") do |f|
+      if block_given?
+        yield f
+        f.close_write
       end
+      f.read
     end
+  end
+end
+
+class BackupItem
+  # One thing to be backed up.
+  include Execute
+  attr_accessor :name
+
+  def initialize(context, options)
+    @context = context
+    options.each {|k, v| send("#{k}=", v) }
   end
 
   def run
-    if contents.empty?
+    # A subclass will likely override this and not call super
+    puts "Running #{inspect}"
+  end
+
+  def pathname(extension=nil)
+    File.join(@context.latest_dir, "#{name}#{extension}")
+  end
+
+  def copy_to_s3
+    old = "#{name}.old"
+    oldest = "#{name}.oldest"
+    # If oldest exists, remove it.
+    # if old exists, rename it to oldest
+    # if it exists, rename it to old
+    # copy it up
+  end
+end
+
+class NightlyBackup
+  include Execute
+
+  # Values we load from our configuration file
+  attr_accessor :hostname, :domain, 
+                :s3_access_key_id, :s3_secret_access_key,
+                :encryption_key_path, :backup_dir, :verbose
+
+  # Other values
+  attr_accessor :items, :configuration_root
+
+  def initialize(*args)
+    @configuration_root ||= "/etc/nightlybackup"
+    @backup_dir ||= "/var/spool/backup_snapshots"
+    parse_options(args)
+
+    read_configuration
+    load_plugins
+    read_configured_items
+  end
+
+  def parse_options(args)
+    OptionParser.new do |opts|
+      opts.banner = """nightlybackup - do nightly backup processing
+
+Usage: nightlybackup [options]
+"""
+
+      opts.on("--config FILE", "Use configuration from here, instead of #{@configuration_root}")\
+        {|@configuration_root|}
+      opts.on("--backup_dir NAME", "Backup to a hierarchy rooted here (instead of #{@backup_dir})")\
+        {|@backup_dir|}
+      opts.on("--force", "Overwrite today's backup if it exists already")\
+        {|@force|}
+      opts.on("-v", "--verbose", "Blah blah blah")\
+        {|@verbose|}
+      opts.on_tail("-h", "--help", "Show this message") do
+        puts opts
+        return 2
+      end
+    end.parse!(args)
+  end
+
+  def read_configuration
+    configuration = load_yaml(configuration_file)
+    configuration.each {|k, v| puts "#{k} < #{v}"; send("#{k}=", v) }
+  end
+
+  def load_plugins
+    $LOAD_PATH << plugin_dir \
+      unless $LOAD_PATH.include?(plugin_dir)
+    Dir.glob("#{plugin_dir}/*.rb") do |path|
+      name = File.basename(path, ".rb")
+      log("requiring plugin #{name}")
+      require name
+    end
+  end
+
+  def read_configured_items
+    @items = []
+    $LOAD_PATH << configuration_dir \
+      unless $LOAD_PATH.include?(configuration_dir)
+    Dir.glob("#{configuration_dir}/*") do |path|
+      name, extension = /([^\/]+)\.([^\.]+)$/.match(path)[1,2]
+      item = case extension
+      when "rb"
+        log("requiring #{name}")
+        require name
+        name.classify.constantize.new(self)
+      when "yml"
+        options = load_yaml(path)
+        options["name"] ||= name
+        klass = options.delete("class")
+        klass = klass ? klass.classify.constantize : BackupItem
+        klass.new(self, options)
+      end
+      @items << item
+    end
+  end
+
+  def run!
+    if items.empty?
       log "nothing to do!"
       exit(0)
     end
 
     create_latest_folder
-    add_backup_items
-    purge_old
-    copy_to_s3
+    backup_items
+    0
   end
 
   def create_latest_folder
-    die("Today's backup already exists: #{latest_dir}") \
-      if Dir.exist?(latest_dir)
+    log("making latest dir: #{latest_dir}")
+    if File.directory?(latest_dir)
+      die("Today's backup already exists: #{latest_dir}") \
+        unless @force
+      FileUtils.rm_rf(latest_dir)
+    end
     FileUtils.mkdir_p(latest_dir)
   end
 
-  def add_backup_items
-    @contents.each {|item| add_to_backup(item) }
+  def backup_items
+    @items.each {|item| item.run }
   end
 
   def purge_old
@@ -131,11 +256,6 @@ class NightlyBackup
     end
   end
 
-  def add_to_backup(item)
-    puts "Adding #{item.inspect}"
-  end
-
-
   def today
     Time.now.strftime("%y%m%d%a") # "090817Mon"
   end
@@ -144,12 +264,17 @@ class NightlyBackup
     "#{backup_dir}/#{today}"
   end
 
+
+  def plugin_dir
+    "#{configuration_root}/plugin.d"
+  end
+
   def configuration_dir
-    "/etc/nightlybackup/conf.d"
+    "#{configuration_root}/conf.d"
   end
 
   def configuration_file
-    "/etc/nightlybackup/nightlybackup.yml"
+    "#{configuration_root}/nightlybackup.yml"
   end
 
   def load_yaml(path)
@@ -157,16 +282,72 @@ class NightlyBackup
     File.open(path) {|f| YAML::load(f) }
   end
 
-  def copy_to_s3(name)
-    old = "#{name}.old"
-    oldest = "#{name}.oldest"
+  def encrypt_command(options={})
+    cmd = [ "/usr/local/bin/encdec --key #{encryption_key_path}" ]
+    cmd << "--in #{options[:in]}" if options[:in]
+    cmd << "--out #{options[:out]}" if options[:out]
+    cmd.join(' ')
+  end
 
-    # If oldest exists, remove it.
-    # if old exists, rename it to oldest
-    # if it exists, rename it to old
-    # copy it up
+  def database_dump_command(database, user, password)
+    password_option = " -p#{@password}" if password
+    "mysqldump --single-transaction --database #{database} " +
+      "-u#{user}#{password_option} --opt --skip-extended-insert"
+  end
 
+  def s3
+    @s3 ||= S3::Service.new(:access_key_id => s3_access_key_id,
+                            :secret_access_key => s3_secret_access_key,
+                            :use_ssl => true) #, :debug => true)
+  end
+
+  def hostname
+    @hostname ||= `hostname --fqdn`.strip
+  end
+
+  def s3_bucket_name_expansion(name)
+    "#{name}.backup.#{hostname}"
+  end
+
+  def s3_bucket(bucket_name, options=nil)
+    options ||= {}
+    bucket_name = s3_bucket_name_expansion(bucket_name)
+    @s3_buckets ||= {}
+    bucket = @s3_buckets[bucket_name]
+    unless bucket
+      bucket = begin
+        s3.buckets.find(bucket_name)
+      rescue S3::Error::NoSuchBucket
+        nil
+      end
+      if !bucket
+        return nil unless options[:create]
+        bucket = @s3.buckets.build(bucket_name)
+        bucket.save(:us)
+      end
+      @s3_buckets[bucket_name] = bucket
+    end
+    bucket
+  end
+
+  def s3_bucket_contains?(bucket_name, name)
+    bucket = s3_bucket(bucket_name)
+    bucket && bucket.objects.find_first(name) 
+  rescue S3::Error::NoSuchKey
+    nil
+  end
+
+  def s3_bucket_add(bucket_name, name, content_path, options=nil)
+    return nil if options[:unless_exists] && s3_bucket_contains?(bucket_name, name)
+    options ||= {}
+    bucket = s3_bucket(bucket_name, options.merge(:create => true))
+    object = bucket.objects.build(name)
+    File.open(content_path) do |f|
+      object.content = f
+      object.save
+    end
+    object
   end
 end
 
-NightlyBackup.new.run
+exit NightlyBackup.new(*ARGV).run!

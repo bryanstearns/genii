@@ -17,10 +17,17 @@ class Features::Backup < Feature
   # - (optionally) copied to a date-stamped S3 bucket
 
   def create_dependencies
-    depends_on :packages => { :name => "s3cmd" }
+    depends_on :ruby_gem => {
+                 :name => "s3",
+                 :version => "0.3.7"
+               }
 
     depends_on :directory => {
                  :name => config_dir_path
+               }
+
+    depends_on :directory => {
+                 :name => plugin_dir_path
                }
 
     depends_on :file => {
@@ -41,24 +48,35 @@ class Features::Backup < Feature
                  :mode => 0755
                }
 
-#    depends_on :cron_job => {
-#                 :login => :root,
-#                 :command => "/usr/local/bin/nightlybackup",
-#                 :minutes => 5,
-#                 :hours => 3,
-#                 :context => find_feature(:rvm, :anything)
-#               }
+    depends_on :cron_job => {
+                 :login => :root,
+                 :command => "/usr/local/bin/nightlybackup >/dev/null",
+                 :minutes => 15,
+                 :hours => 0,
+                 :context => find_feature(:rvm, :anything)
+               }
 
-    depends_on(:file => {
-                 :name => "#{config_dir_path}/#{name}",
-                 :content => backup_content,
-                 :mode => 0644
-               })\
-      if name
+    if name
+      plugin = configuration && configuration[:class]
+      depends_on(:file => {
+                   :name => "#{plugin_dir_path}/#{plugin}.rb",
+                   :source => "backup/#{plugin}.rb"
+                 })\
+        if plugin
+      depends_on :file => {
+                   :name => "#{config_dir_path}/#{name}",
+                   :content => backup_content,
+                   :mode => 0644
+                 }
+    end
   end
 
   def config_dir_path
     "/etc/nightlybackup/conf.d"
+  end
+
+  def plugin_dir_path
+    "/etc/nightlybackup/plugin.d"
   end
 
   def encryption_key_path_on_target
