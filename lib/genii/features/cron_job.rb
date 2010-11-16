@@ -39,7 +39,7 @@ class Features::CronJob < Feature
   def describe_options
     # Shorten the context if we were given one
     result = options.dup
-    result[:context] &&= result[:context].name
+    result[:context] &&= (result[:context].name rescue result[:context].class.name)
     result
   end
 
