@@ -1,5 +1,6 @@
 class Feature
   include Execute
+  extend Execute # so that class methods can execute too!
   include Git
 
   attr_accessor :options
