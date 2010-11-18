@@ -10,7 +10,7 @@ class Logfiles < BackupItem
   # Any logs with a date-stamp and gzip suffix will be encrypted and copied to S3
   # if not already there; any of those already there older than 14 days will be removed
   
-  attr_accessor :dir, :purge_after_days, :log_files
+  attr_accessor :dir, :purge_after_days, :log_names
   
   def initialize(context, options)
     rails_app_dir = options.delete("rails_app_dir")
@@ -25,9 +25,10 @@ class Logfiles < BackupItem
   end
 
   def run
-    log_files.each do |log_name|
+    log_names.each do |log_name|
       run_one_log(log_name)
     end
+  end
 
   def run_one_log(log_name)
     Dir.glob("#{dir}/#{log_name}*").sort.each do |log_path|
@@ -42,7 +43,7 @@ class Logfiles < BackupItem
           tf = Tempfile.new
           begin
             tf.close
-            compress_and_encrypt(log_file, tf.path)
+            compress_and_encrypt(log_path, tf.path)
             @context.s3_bucket_add("logfiles", result_file, tf.path) 
           ensure
             tf.unlink
@@ -56,7 +57,7 @@ class Logfiles < BackupItem
           end
         end
       elsif log_file !~ /\.gz$/
-        compress_and_encrypt(log_file,
+        compress_and_encrypt(log_path,
           File.join(@context.latest_dir, result_file))
       else
         puts "Skipping gzipped logfile with a non-datestampped name: #{log_path}"

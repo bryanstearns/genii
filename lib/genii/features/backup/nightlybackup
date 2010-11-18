@@ -181,6 +181,7 @@ Usage: nightlybackup [options]
         require name
         name.classify.constantize.new(self)
       when "yml"
+        log("reading #{path}")
         options = load_yaml(path)
         options["name"] ||= name
         klass = options.delete("class")
@@ -279,7 +280,9 @@ Usage: nightlybackup [options]
 
   def load_yaml(path)
     log("loading configuration #{path}")
-    File.open(path) {|f| YAML::load(f) }
+    result = File.open(path) {|f| YAML::load(f) }
+    result = {} if result == false # the file is empty?!
+    result
   end
 
   def encrypt_command(options={})

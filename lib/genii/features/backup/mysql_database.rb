@@ -9,7 +9,7 @@ class MysqlDatabase < BackupItem
   def initialize(context, options)
     rails_app_dir = options.delete("rails_app_dir")
     if rails_app_dir
-      rails_env = options.delete("rails_env", "backup")
+      rails_env = options.delete("rails_env") || "production"
       options["database"], options["user"], options["password"] = \
         parse_database_yml(rails_app_dir, rails_env)
     end
@@ -30,7 +30,7 @@ class MysqlDatabase < BackupItem
   end
 
   def parse_database_yml(rails_app_dir, rails_env)
-    db_yml = load_yaml(File.join(rails_app_dir, "config", "database.yml"))
+    db_yml = File.open(File.join(rails_app_dir, "config", "database.yml")) {|f| YAML::load(f) }
     config = db_yml[rails_env]
     [config["database"], config["user"], config["password"]]
   end

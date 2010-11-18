@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Bryan Stearns"]
-  s.date = %q{2010-11-17}
+  s.date = %q{2010-11-18}
   s.default_executable = %q{genii}
   s.description = %q{Yet another take on system setup in Ruby}
   s.email = %q{bryanstearns@gmail.com}
@@ -34,6 +34,7 @@ Gem::Specification.new do |s|
      "lib/genii/features/apache_vhost.rb",
      "lib/genii/features/apt_update.rb",
      "lib/genii/features/backup.rb",
+     "lib/genii/features/backup/encdec",
      "lib/genii/features/backup/logfiles.rb",
      "lib/genii/features/backup/mediawiki.rb",
      "lib/genii/features/backup/mysql_database.rb",

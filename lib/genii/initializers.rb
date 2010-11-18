@@ -75,6 +75,16 @@ class Hash
       h
     end
   end
+
+  # Like the above, but changes symbol keys to strings
+  def stringize_keys
+    self.inject({}) do|h, (key, value)|
+      new_key = key.is_a?(Symbol) ? key.to_s : key
+      new_value = value.is_a?(Hash) ? value.stringize_keys : value
+      h[new_key] = new_value
+      h
+    end
+  end
 end
 
 class Object

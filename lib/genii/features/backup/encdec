@@ -1,0 +1,101 @@
+#!/usr/bin/env ruby
+#
+# Encrypt or decrypt a file.
+# - Generates a random key to encrypt the bulk of the input file
+# - Encrypts the random key using symmetrical encryption
+# - Writes the encrypted random key to the output file, followed
+#   by the encrypted file data.
+# - Does the opposite on decrypt.
+
+require 'fileutils'
+require 'optparse'
+require 'openssl'
+require 'yaml'
+
+class EncDec
+  CIPHER = 'aes-256-cbc'
+  BLOCK_SIZE = 128 * 1024
+
+  def initialize
+    @key = nil
+    @input = STDIN
+    @output = STDOUT
+
+    names = OptionParser.new do |opts|
+      opts.on("--key PATH", "Path to public key (if encrypting) or private key (if decrypting)") do |v|
+        @key = File.read(v) rescue abort("Can't read key file #{v}")
+      end
+      opts.on("--in PATH", "Input file (defaults to standard input)") \
+        {|path| @input = File.open(path) }
+      opts.on("--out PATH", "Output file (defaults to standard output)") \
+        {|path| @output = File.open(path, "w") }
+      opts.on("--decrypt", "Decrypt instead of encrypting") {|@decrypt|}
+      opts.on_tail("-h", "--help", "Show this message") do
+        STDERR.puts opts
+        exit 2
+      end
+    end.parse!
+
+    abort "No --key PATH provided" unless @key
+
+    if @decrypt
+      decrypt
+    else
+      encrypt
+    end
+  end
+
+  def encrypt
+    # Create the symmetric cipher we'll use to encrypt the bulk of the data.
+    # Ask it to encrypt with a random key and initialization vector.
+    cipher = OpenSSL::Cipher::Cipher.new(CIPHER)
+    cipher.encrypt
+    cipher.key = random_key = cipher.random_key
+    cipher.iv = random_iv = cipher.random_iv
+
+    # Before we start writing encrypted data to our output, encrypt the
+    # random key and IV with our public key; write that to our output first,
+    # so that the decryption side can get access to it.
+    encrypted_secrets = OpenSSL::PKey::RSA.new(@key).public_encrypt(\
+      [random_key, random_iv].to_yaml)
+    @output.putc((encrypted_secrets.size % 256) & 0xff)
+    @output.putc((encrypted_secrets.size / 256) & 0xff)
+    written = @output.write(encrypted_secrets)
+    abort "uhoh" unless written == encrypted_secrets.size
+
+    process(cipher)
+  end
+
+  def process(cipher)
+    while !@input.eof? do
+      @output.write(cipher.update(@input.read(BLOCK_SIZE)))
+    end
+    @output.write(cipher.final)
+  end
+
+  def decrypt
+    # First, read the size of the symetrically-encrypted secrets, then read
+    # the secrets themselves
+    size = @input.getc
+    size += @input.getc * 256
+    random_key, random_iv = YAML.load(OpenSSL::PKey::RSA.new(@key, 'sekrit').\
+                                      private_decrypt(@input.read(size)))
+
+    # Use the secrets to set up our cipher, then decrypt the rest of the file.
+    cipher = OpenSSL::Cipher::Cipher.new(CIPHER)
+    cipher.decrypt
+    cipher.key = random_key
+    cipher.iv = random_iv
+
+    process(cipher)
+  end
+end
+
+begin
+  EncDec.new
+rescue SystemExit
+  raise
+rescue Exception => e
+  puts "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+  exit 1
+end

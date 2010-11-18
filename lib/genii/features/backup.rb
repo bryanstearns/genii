@@ -30,11 +30,12 @@ class Features::Backup < Feature
                  :name => plugin_dir_path
                }
 
-    depends_on :file => {
+    depends_on(:file => {
                  :name => "/etc/nightlybackup/nightlybackup.yml",
                  :content => nightlybackup_yml_content,
                  :mode => 0600
-               }
+               })\
+      if backup_dir || s3_config_path || encryption_key_path
 
     depends_on(:file => {
                  :name => encryption_key_path_on_target,
@@ -45,6 +46,12 @@ class Features::Backup < Feature
     depends_on :file => {
                  :name => "/usr/local/bin/nightlybackup",
                  :source => "backup/nightlybackup",
+                 :mode => 0755
+               }
+
+    depends_on :file => {
+                 :name => "/usr/local/bin/encdec",
+                 :source => "backup/encdec",
                  :mode => 0755
                }
 
@@ -87,7 +94,7 @@ class Features::Backup < Feature
     # This is the file that tells nightlybackup what to do for this thing
     [genii_header("Backup: #{name}"),
      comment && "# #{comment}",
-     configuration.is_a?(Hash) ? configuration.to_yaml : configuration
+     configuration.is_a?(Hash) ? configuration.stringize_keys.to_yaml : configuration
     ].compact.join("\n")
   end
 
