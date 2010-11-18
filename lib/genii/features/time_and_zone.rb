@@ -12,7 +12,11 @@ class Features::TimeAndZone < Feature
   end
 
   def apply
-    execute("echo '#{timezone}' > /etc/timezone; dpkg-reconfigure --frontend noninteractive tzdata")
+    execute([
+      "echo '#{timezone}' > /etc/timezone",
+      "dpkg-reconfigure --frontend noninteractive tzdata",
+      "/etc/init.d/cron restart"
+    ].join('; '))
   end
   
   def done?
