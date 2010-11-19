@@ -8,23 +8,21 @@
 # - wiki content
 # - hudson build history & stats
 #
-# each contribution is
-# - (by default) tarred
-# - (by default) encrypted
-# - (optionally) copied to a date-stamped S3 bucket
-# - (optionally) rotated, with...
-# - (optional) .. flushing to keep a recent set of a given size
+# There's a plugin mechanism to decide how to deal with each kind of thing,
+# and a configuration directory to configure the specific instances.
 #
-# Each thing is defined in a file in the configuration directory; it's either:
-# - a .yml file containing a hash with these attributes (which are used as the
-# options to initialize a generic BackupItem):
+# This script manages a filesystem hierarchy (by default in
+# /var/spool/nightlybackup) of date-stamped directories containing a rotating
+# set of recent backups. Each day's backup is also copied to a bucket on S3
+# (if a keys are configured); the three most recent ones are kept there.
+# Individual instances can also decide to keep archives on S3: we use this to
+# move all but the most recent system & Rails-app logs there.
 #
-# - or a .rb file containing a BackupItem subclass that can be initialized without
-# extra options.
+# The plugin files are .rb files subclassed from BackupItem; each configuration
+# file can be a .yml set of initialization options for a BackupItem instance,
+# or a one-off BackupItem subclass in an .rb file (really just a vestige from
+# before the plugin.d directory existed).
 #
-# On S3, we keep
-# - per-item per-host backup buckets named eg "paydici_live.cyan.paydici.com"
-# - per-item per-host archive buckets named eg "syslog.cyan.paydici.com"
 
 require 'fileutils'
 require 'yaml'
@@ -37,6 +35,7 @@ require 'ruby-debug'
 def log(msg)
   if STDOUT.isatty
     puts msg
+    STDOUT.flush
   else
     Syslog.open('nightlybackup', Syslog::LOG_PID | Syslog::LOG_CONS) \
       unless Syslog.opened?
@@ -98,16 +97,8 @@ class BackupItem
   end
 
   def pathname(extension=nil)
+    # guess at an appropriate path to back up one thing for this item
     File.join(@context.latest_dir, "#{name}#{extension}")
-  end
-
-  def copy_to_s3
-    old = "#{name}.old"
-    oldest = "#{name}.oldest"
-    # If oldest exists, remove it.
-    # if old exists, rename it to oldest
-    # if it exists, rename it to old
-    # copy it up
   end
 end
 
@@ -124,12 +115,28 @@ class NightlyBackup
 
   def initialize(*args)
     @configuration_root ||= "/etc/nightlybackup"
-    @backup_dir ||= "/var/spool/backup_snapshots"
+    @backup_dir ||= "/var/spool/nightlybackup"
     parse_options(args)
 
     read_configuration
     load_plugins
     read_configured_items
+  end
+
+  def run!
+    if items.empty?
+      log "Nothing to do: no configured backup items!"
+      exit(0)
+    end
+
+    create_latest_folder
+    backup_items
+    if s3_access_key_id
+      copy_latest_to_s3
+      cleanup_s3_backups
+    end
+    cleanup_local_backups
+    0
   end
 
   def parse_options(args)
@@ -192,17 +199,6 @@ Usage: nightlybackup [options]
     end
   end
 
-  def run!
-    if items.empty?
-      log "nothing to do!"
-      exit(0)
-    end
-
-    create_latest_folder
-    backup_items
-    0
-  end
-
   def create_latest_folder
     log("making latest dir: #{latest_dir}")
     if File.directory?(latest_dir)
@@ -217,7 +213,45 @@ Usage: nightlybackup [options]
     @items.each {|item| item.run }
   end
 
-  def purge_old
+  def copy_latest_to_s3
+    files = Dir.glob("#{latest_dir}/*")
+    if files.empty?
+      log "Nothing to copy to s3 from #{latest_dir}"
+    else
+      s3_bucket_add(today, files)
+    end
+  end
+
+  def cleanup_s3_backups
+    # Just keep this many of the most recent daily backups
+    log "--\nS3 cleanup:"
+    keep_count = 3
+    buckets_by_date = s3.buckets.inject({}) do |h, bucket|
+      if bucket.name =~ /^backup\.(\d\d\d\d\d\d\S\S\S).#{hostname}/
+        h[$~[1]] = bucket
+      end
+      h
+    end
+    if buckets_by_date.size > keep_count
+      log "Have #{buckets_by_date.size} recent backups on S3: purging"
+      sorted_dates = buckets_by_date.keys.sort
+      sorted_dates[0...-keep_count].each do |date|
+        bucket = buckets_by_date[date]
+        log "-- Discarding #{bucket.name}"
+        bucket.objects.each do |object|
+          object.destroy
+        end
+        bucket.destroy
+      end
+      sorted_dates[-keep_count..-1].each do |date|
+        log "-- Keeping #{buckets_by_date[date].name}"
+      end
+    else
+      log "Only have #{buckets_by_date.size} recent backups on S3: not purging"
+    end
+  end
+
+  def cleanup_local_backups
     # Clean up old backups
     # - Keep all from the last two weeks
     # - Keep all Mondays less than two months old
@@ -226,6 +260,7 @@ Usage: nightlybackup [options]
     # - Keep everything until we've got backups from the most recent two weeks.
     doomed = []
     recent_count = 0
+    log "--\nLocal cleanup:"
     Dir.entries(backup_dir).sort.each do |f|
       next unless f =~ /(\d\d)(\d\d)(\d\d)(\S\S\S)$/
       ignored, year, month, day, day_of_week = $~.to_a
@@ -236,7 +271,7 @@ Usage: nightlybackup [options]
         recent_count += 1
         next
       end
-      if day_of_week == 'Mon'
+      if day_of_week == 'mon'
         if days_old <= 62
           log "-- Keeping #{f}: a Monday less than about two months old."
           next
@@ -258,7 +293,8 @@ Usage: nightlybackup [options]
   end
 
   def today
-    Time.now.strftime("%y%m%d%a") # "090817Mon"
+    # We downcase because s3's bucket naming disallows uppercase
+    @today ||= Time.now.strftime("%y%m%d%a").downcase # "090817mon"
   end
 
   def latest_dir
@@ -292,10 +328,11 @@ Usage: nightlybackup [options]
     cmd.join(' ')
   end
 
-  def database_dump_command(database, user, password)
-    password_option = " -p#{@password}" if password
+  def database_dump_command(database, user=nil, password=nil)
+    user_option = "-u#{user} " if user
+    password_option = "-p#{password} " if password
     "mysqldump --single-transaction --database #{database} " +
-      "-u#{user}#{password_option} --opt --skip-extended-insert"
+      "#{user_option}#{password_option} --opt --skip-extended-insert"
   end
 
   def s3
@@ -309,7 +346,7 @@ Usage: nightlybackup [options]
   end
 
   def s3_bucket_name_expansion(name)
-    "#{name}.backup.#{hostname}"
+    "backup.#{name}.#{hostname}"
   end
 
   def s3_bucket(bucket_name, options=nil)
@@ -319,6 +356,7 @@ Usage: nightlybackup [options]
     bucket = @s3_buckets[bucket_name]
     unless bucket
       bucket = begin
+        log("Looking for bucket #{bucket_name}")
         s3.buckets.find(bucket_name)
       rescue S3::Error::NoSuchBucket
         nil
@@ -340,16 +378,30 @@ Usage: nightlybackup [options]
     nil
   end
 
-  def s3_bucket_add(bucket_name, name, content_path, options=nil)
-    return nil if options[:unless_exists] && s3_bucket_contains?(bucket_name, name)
+  def s3_bucket_add(bucket_name, paths, options=nil)
+    paths = [paths].compact
     options ||= {}
-    bucket = s3_bucket(bucket_name, options.merge(:create => true))
-    object = bucket.objects.build(name)
-    File.open(content_path) do |f|
-      object.content = f
-      object.save
+    bucket = nil
+    paths.each do |path|
+      name = options[:name] || File.basename(path)
+      if !options[:unless_exists] || s3_bucket_contains?(bucket_name, name)
+        bucket ||= s3_bucket(bucket_name, options.merge(:create => true))
+        object = bucket.objects.build(name)
+        how_much = human_size(File.stat(path).size)
+        log("Copying #{path} to s3://#{bucket_name}/#{name} (#{how_much})")
+        File.open(path) do |f|
+          object.content = f
+          object.save
+        end
+      end
     end
-    object
+  end
+
+  def human_size(bytes)
+    units = %w[B KB MB GB TB]
+    e = (Math.log(bytes) / Math.log(1024)).floor
+    s = "%.3f" % (bytes.to_f / 1024**e)
+    s.sub(/\.?0*$/, units[e])
   end
 end
 

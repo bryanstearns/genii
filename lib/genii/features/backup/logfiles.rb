@@ -44,7 +44,7 @@ class Logfiles < BackupItem
           begin
             tf.close
             compress_and_encrypt(log_path, tf.path)
-            @context.s3_bucket_add("logfiles", result_file, tf.path) 
+            @context.s3_bucket_add("logfiles", tf.path, :name => result_file) 
           ensure
             tf.unlink
           end

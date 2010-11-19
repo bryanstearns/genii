@@ -6,16 +6,6 @@ class MysqlDatabase < BackupItem
     database
   end
 
-  def initialize(context, options)
-    rails_app_dir = options.delete("rails_app_dir")
-    if rails_app_dir
-      rails_env = options.delete("rails_env") || "production"
-      options["database"], options["user"], options["password"] = \
-        parse_database_yml(rails_app_dir, rails_env)
-    end
-    super
-  end
-
   def run
     # Dump the database, compressed & encrypted
     cmd = [
@@ -27,11 +17,5 @@ class MysqlDatabase < BackupItem
     output = execute(cmd)
     abort "Backup of database #{database} failed (#{$?}): #{output}" unless $? == 0
     log("Backed up database: #{database}")
-  end
-
-  def parse_database_yml(rails_app_dir, rails_env)
-    db_yml = File.open(File.join(rails_app_dir, "config", "database.yml")) {|f| YAML::load(f) }
-    config = db_yml[rails_env]
-    [config["database"], config["user"], config["password"]]
   end
 end

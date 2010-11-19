@@ -2,6 +2,12 @@ class Mediawiki < BackupItem
   # Backing up the mediawiki database and files
   attr_accessor :database, :user, :password, :root_dir
 
+  def initialize(context, options)
+    super
+    @database ||= "wikidb"
+    @root_dir ||= "/var/lib/mediawiki"
+  end
+  
   def run
     # Dump the database, compressed & encrypted
     cmd = [
