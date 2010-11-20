@@ -1,6 +1,6 @@
 class Mediawiki < BackupItem
   # Backing up the mediawiki database and files
-  attr_accessor :database, :user, :password, :root_dir
+  attr_accessor :database, :user, :password
 
   def initialize(context, options)
     super
@@ -21,13 +21,6 @@ class Mediawiki < BackupItem
     log("Backed up mediawiki database: #{database}")
 
     # tar-up the filesystem too
-    cmd = [
-      "cd #{root_dir} && tar czf -",
-      @context.encrypt_command(:out => pathname(".tgz.enc"))
-    ].join(' | ')
-    log(cmd)
-    output = execute(cmd)
-    abort "Backup of mediawiki filesystem #{root_dir} failed (#{$?}): #{output}" unless $? == 0
-    log("Backed up mediawiki filesystem: #{root_dir}")
+    super
   end
 end

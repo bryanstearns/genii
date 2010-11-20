@@ -28,6 +28,7 @@ require 'fileutils'
 require 'yaml'
 require 'syslog'
 require 'optparse'
+require 'tempfile'
 require 'rubygems'
 require 's3'
 require 'ruby-debug'
@@ -84,7 +85,7 @@ end
 class BackupItem
   # One thing to be backed up.
   include Execute
-  attr_accessor :name
+  attr_accessor :name, :root_dir, :exclude
 
   def initialize(context, options)
     @context = context
@@ -94,6 +95,20 @@ class BackupItem
   def run
     # A subclass will likely override this and not call super
     puts "Running #{inspect}"
+    exclusions = exceptions.map{|e| " --exclude=#{e}"}.join(' ') \
+      if exclude
+    cmd = [
+      "cd #{root_dir} && tar czf -#{exclusions}",
+      @context.encrypt_command(:out => pathname(".tgz.enc"))
+    ].join(' | ')
+    log(cmd)
+    output = execute(cmd)
+    abort "Backup of filesystem #{root_dir} failed (#{$?}): #{output}" unless $? == 0
+    log("Backed up filesystem: #{root_dir}")
+  end
+
+  def verbose
+    @context.verbose
   end
 
   def pathname(extension=nil)
@@ -108,7 +123,8 @@ class NightlyBackup
   # Values we load from our configuration file
   attr_accessor :hostname, :domain, 
                 :s3_access_key_id, :s3_secret_access_key,
-                :encryption_key_path, :backup_dir, :verbose
+                :encryption_key_path, :backup_dir, :verbose,
+                :skip_s3, :skip_cleanup
 
   # Other values
   attr_accessor :items, :configuration_root
@@ -131,11 +147,11 @@ class NightlyBackup
 
     create_latest_folder
     backup_items
-    if s3_access_key_id
+    if s3_access_key_id && !skip_s3
       copy_latest_to_s3
-      cleanup_s3_backups
+      cleanup_s3_backups unless skip_cleanup
     end
-    cleanup_local_backups
+    cleanup_local_backups unless skip_cleanup
     0
   end
 
@@ -152,6 +168,13 @@ Usage: nightlybackup [options]
         {|@backup_dir|}
       opts.on("--force", "Overwrite today's backup if it exists already")\
         {|@force|}
+      opts.on("--skip_s3", "Don't copy to S3 or clean it up")\
+        {|@skip_s3|}
+      opts.on("--skip_cleanup", "Don't do any cleanup")\
+        {|@skip_cleanup|}
+      opts.on("--today DATE", "pretend it's this date (for testing only)") do |today|
+        @today = Date.parse(today).strftime("%y%m%d%a").downcase # "090817mon"
+      end
       opts.on("-v", "--verbose", "Blah blah blah")\
         {|@verbose|}
       opts.on_tail("-h", "--help", "Show this message") do
@@ -163,7 +186,10 @@ Usage: nightlybackup [options]
 
   def read_configuration
     configuration = load_yaml(configuration_file)
-    configuration.each {|k, v| puts "#{k} < #{v}"; send("#{k}=", v) }
+    configuration.each do |k, v|
+      log("#{k} < #{v}") if verbose
+      send("#{k}=", v)
+    end
   end
 
   def load_plugins
@@ -171,7 +197,7 @@ Usage: nightlybackup [options]
       unless $LOAD_PATH.include?(plugin_dir)
     Dir.glob("#{plugin_dir}/*.rb") do |path|
       name = File.basename(path, ".rb")
-      log("requiring plugin #{name}")
+      log("requiring plugin #{name}") if verbose
       require name
     end
   end
@@ -184,11 +210,11 @@ Usage: nightlybackup [options]
       name, extension = /([^\/]+)\.([^\.]+)$/.match(path)[1,2]
       item = case extension
       when "rb"
-        log("requiring #{name}")
+        log("requiring #{name}") if verbose
         require name
         name.classify.constantize.new(self)
       when "yml"
-        log("reading #{path}")
+        log("reading #{path}") if verbose
         options = load_yaml(path)
         options["name"] ||= name
         klass = options.delete("class")
@@ -200,7 +226,7 @@ Usage: nightlybackup [options]
   end
 
   def create_latest_folder
-    log("making latest dir: #{latest_dir}")
+    log("making latest dir: #{latest_dir}") if verbose
     if File.directory?(latest_dir)
       die("Today's backup already exists: #{latest_dir}") \
         unless @force
@@ -237,14 +263,14 @@ Usage: nightlybackup [options]
       sorted_dates = buckets_by_date.keys.sort
       sorted_dates[0...-keep_count].each do |date|
         bucket = buckets_by_date[date]
-        log "-- Discarding #{bucket.name}"
+        log "-- Discarding #{bucket.name}" if verbose
         bucket.objects.each do |object|
           object.destroy
         end
         bucket.destroy
       end
       sorted_dates[-keep_count..-1].each do |date|
-        log "-- Keeping #{buckets_by_date[date].name}"
+        log "-- Keeping #{buckets_by_date[date].name}" if verbose
       end
     else
       log "Only have #{buckets_by_date.size} recent backups on S3: not purging"
@@ -315,7 +341,7 @@ Usage: nightlybackup [options]
   end
 
   def load_yaml(path)
-    log("loading configuration #{path}")
+    log("loading configuration #{path}") if verbose
     result = File.open(path) {|f| YAML::load(f) }
     result = {} if result == false # the file is empty?!
     result
@@ -356,7 +382,7 @@ Usage: nightlybackup [options]
     bucket = @s3_buckets[bucket_name]
     unless bucket
       bucket = begin
-        log("Looking for bucket #{bucket_name}")
+        log("Looking for bucket #{bucket_name}") if verbose
         s3.buckets.find(bucket_name)
       rescue S3::Error::NoSuchBucket
         nil
@@ -379,7 +405,7 @@ Usage: nightlybackup [options]
   end
 
   def s3_bucket_add(bucket_name, paths, options=nil)
-    paths = [paths].compact
+    paths = [paths].flatten
     options ||= {}
     bucket = nil
     paths.each do |path|
@@ -388,7 +414,7 @@ Usage: nightlybackup [options]
         bucket ||= s3_bucket(bucket_name, options.merge(:create => true))
         object = bucket.objects.build(name)
         how_much = human_size(File.stat(path).size)
-        log("Copying #{path} to s3://#{bucket_name}/#{name} (#{how_much})")
+        log("Copying #{path} to #{object.url} (#{how_much})")
         File.open(path) do |f|
           object.content = f
           object.save

@@ -33,36 +33,45 @@ class Logfiles < BackupItem
   def run_one_log(log_name)
     Dir.glob("#{dir}/#{log_name}*").sort.each do |log_path|
       log_file = File.basename(log_path)
-      result_file = "#{log_file}.gz.enc"
-      
       if log_file =~ /(\d{8})\.gz$/
-        date = Regexp.last_match(1)
-        
         # Make sure this log exists on S3...
-        unless @context.s3_bucket_contains?("logfiles", result_file)
-          tf = Tempfile.new
-          begin
-            tf.close
-            compress_and_encrypt(log_path, tf.path)
-            @context.s3_bucket_add("logfiles", tf.path, :name => result_file) 
-          ensure
-            tf.unlink
-          end
-        else
-          # Delete the local copy if it's old enough
-          date = Date.civil(date[0..3].to_i, date[4..5].to_i, date[6..7].to_i) rescue nil
-          if date and (Date.today - date) > purge_after_days
-            puts "Would delete #{log_path}"
-            # FileUtils.rm(log_path)
+        unless @context.skip_s3
+          date = Regexp.last_match(1)
+          result_file = "#{log_file}.enc" # has .gz in name already
+          if !@context.s3_bucket_contains?("logfiles", result_file)
+            tf = Tempfile.new(log_file)
+            begin
+              tf.close
+              encrypt(log_path, tf.path)
+              @context.s3_bucket_add("logfiles", tf.path, :name => result_file)
+            ensure
+              tf.unlink
+            end
+          elsif !@context.skip_cleanup
+            # Delete the local copy if it's old enough
+            date = Date.civil(date[0..3].to_i, date[4..5].to_i, date[6..7].to_i) rescue nil
+            age = date && (Date.today - date)
+            if age and age > purge_after_days
+              log("Deleting #{log_path}")
+              FileUtils.rm(log_path)
+            end
           end
         end
       elsif log_file !~ /\.gz$/
         compress_and_encrypt(log_path,
-          File.join(@context.latest_dir, result_file))
+          File.join(@context.latest_dir, "#{log_file}.gz.enc"))
       else
-        puts "Skipping gzipped logfile with a non-datestampped name: #{log_path}"
+        log("Skipping gzipped logfile with a non-datestampped name: #{log_path}")
       end
     end
+  end
+
+  def encrypt(in_path, out_path)
+    cmd = @context.encrypt_command(:in => in_path, :out => out_path)
+    log(cmd) if verbose
+    output = execute(cmd)
+    abort "Backup of #{in_path} failed (#{$?}): #{output}" unless $? == 0
+    log("Backed up #{in_path}")
   end
 
   def compress_and_encrypt(in_path, out_path)
@@ -70,7 +79,7 @@ class Logfiles < BackupItem
       "gzip <#{in_path}",
       @context.encrypt_command(:out => out_path)
     ].join(" | ")
-    log(cmd)
+    log(cmd) if verbose
     output = execute(cmd)
     abort "Backup of #{in_path} failed (#{$?}): #{output}" unless $? == 0
     log("Backed up #{in_path}")
