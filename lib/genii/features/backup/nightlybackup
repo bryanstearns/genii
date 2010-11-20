@@ -85,7 +85,7 @@ end
 class BackupItem
   # One thing to be backed up.
   include Execute
-  attr_accessor :name, :root_dir, :exclude
+  attr_accessor :name, :path, :exclude
 
   def initialize(context, options)
     @context = context
@@ -94,17 +94,26 @@ class BackupItem
 
   def run
     # A subclass will likely override this and not call super
-    puts "Running #{inspect}"
-    exclusions = exceptions.map{|e| " --exclude=#{e}"}.join(' ') \
-      if exclude
-    cmd = [
-      "cd #{root_dir} && tar czf -#{exclusions}",
-      @context.encrypt_command(:out => pathname(".tgz.enc"))
-    ].join(' | ')
+    log("Running #{inspect}") if verbose
+    cmd = if File.directory?(path)
+      exclusions = exclude.map{|e| " --exclude=#{e}"}.join(' ') \
+        if exclude
+      parent, child = File.split(path)
+      [
+        "cd #{parent} && tar czf -#{exclusions} #{child}",
+        @context.encrypt_command(:out => pathname(".tgz.enc"))
+      ].join(' | ')
+    elsif File.exists?(path)
+      @context.compress_and_encrypt_command(:in => path,
+                                            :out => pathname(".tgz.enc"))
+    else
+      log("Skipping #{path}: doesn't exist.")
+      return
+    end
     log(cmd)
     output = execute(cmd)
-    abort "Backup of filesystem #{root_dir} failed (#{$?}): #{output}" unless $? == 0
-    log("Backed up filesystem: #{root_dir}")
+    abort "Backup of #{path} failed (#{$?}): #{output}" unless $? == 0
+    log("Backed up: #{path}")
   end
 
   def verbose

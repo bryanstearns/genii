@@ -5,7 +5,7 @@ class Mediawiki < BackupItem
   def initialize(context, options)
     super
     @database ||= "wikidb"
-    @root_dir ||= "/var/lib/mediawiki"
+    @path ||= "/var/lib/mediawiki"
   end
   
   def run
