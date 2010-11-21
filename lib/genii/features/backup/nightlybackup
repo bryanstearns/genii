@@ -95,17 +95,17 @@ class BackupItem
   def run
     # A subclass will likely override this and not call super
     log("Running #{inspect}") if verbose
-    cmd = if File.directory?(path)
+    if File.directory?(path)
       exclusions = exclude.map{|e| " --exclude=#{e}"}.join(' ') \
         if exclude
       parent, child = File.split(path)
-      [
+      cmd = [
         "cd #{parent} && tar czf -#{exclusions} #{child}",
         @context.encrypt_command(:out => pathname(".tgz.enc"))
       ].join(' | ')
     elsif File.exists?(path)
-      @context.compress_and_encrypt_command(:in => path,
-                                            :out => pathname(".tgz.enc"))
+      cmd = @context.compress_and_encrypt_command(:in => path,
+                                                  :out => pathname(".tgz.enc"))
     else
       log("Skipping #{path}: doesn't exist.")
       return
