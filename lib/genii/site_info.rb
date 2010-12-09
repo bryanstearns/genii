@@ -129,9 +129,15 @@ module SiteInfo
   
   def auth_configuration
     @auth_configuration ||= if auth_users
+      auth_type_setup = "AuthType #{(auth_type || :digest).to_s.capitalize}"
+
+      # If using digest auth, play nice with IE6
+      auth_type_setup += "\n    BrowserMatch \"MSIE\" AuthDigestEnableQueryStringHack=On" \
+        if (auth_type || :digest) == :digest
+
       """
   <Location #{uri.path}>
-    AuthType #{(auth_type || :digest).to_s.capitalize}
+    #{auth_type_setup}
     AuthName \"#{auth_realm}\"
     AuthUserFile \"#{auth_path}\"
     require valid-user
