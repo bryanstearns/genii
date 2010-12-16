@@ -323,7 +323,7 @@ Usage: nightlybackup [options]
     if recent_count < 14
       log "-- .. postponing cleanup: recent backup count is #{recent_count}"
     else
-      doomed.map {|f| FileUtils.rm("#{backup_dir}/#{f}") }
+      doomed.map {|f| FileUtils.rm_rf("#{backup_dir}/#{f}") }
     end
   end
 
