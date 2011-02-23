@@ -17,7 +17,7 @@ class Features::ApacheVhost < Feature
   DISABLE_MODULES = %w[autoindex.load autoindex.conf status.load status.conf]
   # We enable these modules
   ENABLE_MODULES = %w[auth_digest.load proxy.load proxy.conf proxy_http.load 
-                      rewrite.load ssl.load ssl.conf]
+                      rewrite.load ssl.load ssl.conf expires.load]
 
   # site_info's, plus:
   attr_accessor :ip, :aliases, :configuration, :httpd_conf
