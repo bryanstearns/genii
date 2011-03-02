@@ -28,6 +28,16 @@ class Features::Rvm < Feature
                               autoconf libc6-dev]
                }
 
+    # Suppress generation of rubydocs; make sure we get github gems too for now
+    depends_on :file => {
+                 :name => "/etc/gemrc",
+                 :content => """#{genii_header("Global gem configuration")}
+install: --no-rdoc --no-ri
+update: --no-rdoc --no-ri
+:sources:
+- http://rubygems.org/
+- http://gems.github.com/
+""",
                }
 
 # Not needed? (now that they're part of global.gems below)

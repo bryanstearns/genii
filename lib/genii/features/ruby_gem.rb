@@ -2,18 +2,6 @@ class Features::RubyGem < Feature
   attr_accessor :name, :version, :gemset
 
   def create_dependencies
-    # Suppress generation of rubydocs; make sure we get github gems too for now
-    depends_on :file => {
-                 :name => "/etc/gemrc",
-                 :content => """#{genii_header("Global gem configuration")}
-install: --no-rdoc --no-ri
-update: --no-rdoc --no-ri
-:sources:
-- http://rubygems.org/
-- http://gems.github.com/
-""",
-               }
-
     # Do RVM first, unless we already have (avoids circular reference
     # from RVM's installation of required gems)
     depends_on(:rvm) unless find_feature(:rvm, :anything)
