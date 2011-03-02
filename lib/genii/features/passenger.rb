@@ -1,5 +1,5 @@
 class Features::Passenger < Feature
-  DEFAULT_GEM_VERSION = "2.2.15"
+  DEFAULT_GEM_VERSION = "3.0.3"
 
   attr_accessor :gem_version
 
