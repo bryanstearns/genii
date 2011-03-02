@@ -7,6 +7,8 @@ class Features::Rvm < Feature
   DEFAULT_RVM_REVISION = "1.0.15"
   DEFAULT_RUBY_VERSION = "ree-1.8.7-2010.02"
 
+  RVM_TRACE = "" # "--trace" # to log more verbosity when debugging problems
+
   # without :revision, you get the DEFAULT_RVM_REVISION above
   # :revision => :HEAD overrides the default RVM revision above to get latest
   attr_accessor :rubies, :revision
@@ -118,7 +120,7 @@ fi
     installer_revision = (revision && revision != :HEAD) ? revision : "master"
     # Use Wayne's
     log(:noisy, execute("curl -L http://github.com/wayneeseguin/rvm/raw/#{installer_revision}/contrib/install-system-wide > /tmp/rvm-install && " +
-                        "bash /tmp/rvm-install").output)
+                        "bash /tmp/rvm-install #{RVM_TRACE}").output)
     # Use a local one when hacking
     # log(:noisy, execute("bash #{File.dirname(__FILE__)}/rvm/install-system-wide #{force_revision}").output)
 
@@ -138,8 +140,9 @@ ruby-debug
 
   def apply_ree
     log(:progress, "Installing REE")
-    log(:noisy, execute("rvm install #{default_ruby_version} && " + \
-            "rvm use #{default_ruby_version} --default").output)
+    log(:noisy, execute("rvm #{RVM_TRACE} install #{default_ruby_version}").output)
+    log(:noisy, execute("rvm use #{default_ruby_version} --default").output)
+
     log(:noisy, execute("rvm info").output)
   end
 
