@@ -21,8 +21,13 @@ class Features::Rvm < Feature
 
   def create_dependencies
     depends_on :packages => {
-                 :names => %w[build-essential curl libreadline5-dev
-                              libssl-dev zlib1g-dev]
+                 :names => %w[build-essential bison openssl libreadline6 
+                              libreadline6-dev curl git-core zlib1g zlib1g-dev
+                              libssl-dev libyaml-dev libsqlite3-0
+                              libsqlite3-dev sqlite3 libxml2-dev libxslt-dev
+                              autoconf libc6-dev]
+               }
+
                }
 
 # Not needed? (now that they're part of global.gems below)
