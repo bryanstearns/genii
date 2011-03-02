@@ -6,6 +6,10 @@ class Features::Rvm < Feature
   # DEFAULT_RVM_REVISION = :HEAD # just use head for now
   DEFAULT_RVM_REVISION = "1.0.15"
   DEFAULT_RUBY_VERSION = "ree-1.8.7-2010.02"
+  # DEFAULT_RUBYGEMS_VERSION = :current # just use whatever we get
+  DEFAULT_RUBYGEMS_VERSION = "1.4.2" # force downgrade to this
+  # Latest is 1.5.2, but rails 2.3.x can't use past 1.4.?
+  # csspool wants hoe, which wants rubygems >= 1.4, so 1.3.7 is too old.
 
   RVM_TRACE = "" # "--trace" # to log more verbosity when debugging problems
 
@@ -157,6 +161,18 @@ ruby-debug
     log(:progress, "Installing REE")
     log(:noisy, execute("rvm #{RVM_TRACE} install #{default_ruby_version}").output)
     log(:noisy, execute("rvm use #{default_ruby_version} --default").output)
+
+    # Make sure we've got the right version of RubyGems
+    unless DEFAULT_RUBYGEMS_VERSION == :current
+      begin
+        log(:noisy, execute("rvm #{RVM_TRACE} rubygems #{DEFAULT_RUBYGEMS_VERSION}").output)
+      rescue Execute::Error
+        # if the first time fails, it's probably trying to find README when
+        # creating rdoc, and it's not there. Create a dummy one and try again.
+        FU.write!("/usr/local/rvm/src/rubygems-#{DEFAULT_RUBYGEMS_VERSION}/README","")
+        log(:noisy, execute("rvm #{RVM_TRACE} rubygems #{DEFAULT_RUBYGEMS_VERSION}").output)
+      end
+    end
 
     log(:noisy, execute("rvm info").output)
   end
