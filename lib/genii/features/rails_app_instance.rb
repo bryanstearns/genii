@@ -24,7 +24,8 @@ class Features::RailsAppInstance < Feature
   attr_accessor :database, :password, :adapter, :pool, :socket,
                 :host, :port
   # - Extra stuff to add to our apache app's local_configuration
-  attr_accessor :apache_configuration
+  attr_accessor :apache_configuration # goes inside <Directory>,,,</Directory>
+  attr_accessor :apache_global_configuration # goes after <Directory>,,,</Directory>
 
   # (Not options...)
   attr_reader :apache_application
@@ -83,7 +84,8 @@ class Features::RailsAppInstance < Feature
 
       apache_options = SITE_OPTIONS.inject({}) {|h, k| h[k] = send(k); h}
       depends_on :apache_application => apache_options.merge(
-                   :local_configuration => app_configuration
+                   :local_configuration => app_configuration,
+                   :global_configuration => apache_global_configuration
                  ),
                  :do_after => self
     end

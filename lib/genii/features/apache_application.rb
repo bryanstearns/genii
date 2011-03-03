@@ -23,7 +23,8 @@ class Features::ApacheApplication < Feature
   # just pass :redirect_to => url.
   #
   # We accept site_info's options, plus:  
-  attr_accessor :redirect_to, :proxy_to, :configuration, :local_configuration
+  attr_accessor :redirect_to, :proxy_to, :configuration, :local_configuration,
+                :global_configuration
 
   def initialize(options={})
     options[:url] ||= "http://localhost"
@@ -121,6 +122,8 @@ private
             "  </Directory>"
           end
         end
+
+        lines << global_configuration if global_configuration
       end
 
       lines << "  #{auth_configuration}" if auth_configuration
