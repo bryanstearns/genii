@@ -8,7 +8,9 @@ class Features::RailsAppInstance < Feature
   
   # - The Rails environment in which the app runs
   # - The Rails gem version
-  attr_accessor :environment, :rails_version
+  # - Whether to prestart this application
+  # - The minimum number of instances to keep running (defaults to 1 if prestart)
+  attr_accessor :environment, :rails_version, :prestart, :min_instances
   # - The git URL, and the branch we'll check out, and a flag that
   #   will cause us to set up submodules (defaults off)
   attr_accessor :repository_url, :repository_branch, :enable_submodules
@@ -34,6 +36,7 @@ class Features::RailsAppInstance < Feature
     options[:name] ||= self.class.name.underscore
     super(options)
     self.environment ||= :development
+    self.min_instances ||= 1 if self.prestart
     self.repository_branch ||= :master
     self.document_root = "#{current_path}/public" unless shared_site?
     self.auth_realm ||= "protected area"
@@ -85,7 +88,7 @@ class Features::RailsAppInstance < Feature
       apache_options = SITE_OPTIONS.inject({}) {|h, k| h[k] = send(k); h}
       depends_on :apache_application => apache_options.merge(
                    :local_configuration => app_configuration,
-                   :global_configuration => apache_global_configuration
+                   :global_configuration => app_global_configuration
                  ),
                  :do_after => self
     end
@@ -181,6 +184,7 @@ class Features::RailsAppInstance < Feature
     """
     RailsBaseURI #{uri.path}
     RailsEnv #{environment}
+    #{"PassengerMinInstances #{min_instances}" if min_instances}
     #{apache_configuration}
     
     # If our maintenance page exists, put that up instead.
@@ -189,6 +193,13 @@ class Features::RailsAppInstance < Feature
     RewriteCond %{REQUEST_URI} !\.(css|gif|ico|jpg|png)$
     RewriteCond %{SCRIPT_FILENAME} !maintenance.html
     RewriteRule ^.*$ %{DOCUMENT_ROOT}/system/maintenance.html [L]
+"""
+  end
+
+  def app_global_configuration
+    """
+#{"PassengerPreStart #{uri}" if prestart}
+#{apache_global_configuration}
 """
   end
 

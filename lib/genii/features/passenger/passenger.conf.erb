@@ -6,7 +6,7 @@ LoadModule passenger_module /usr/local/rvm/gems/<%=passenger_ruby_version %>/gem
 PassengerRoot /usr/local/rvm/gems/<%=passenger_ruby_version %>/gems/passenger-<%= passenger_version %>
 PassengerRuby /usr/local/rvm/wrappers/<%=passenger_ruby_version %>/ruby
 
-PassengerMaxPoolSize 20
+PassengerMaxPoolSize <%= max_pool_size %>
 PassengerPoolIdleTime 3600
 PassengerUseGlobalQueue on
 PassengerStatThrottleRate 2
