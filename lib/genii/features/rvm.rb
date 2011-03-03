@@ -4,8 +4,8 @@ require 'etc'
 class Features::Rvm < Feature
   # The rvm and ruby we'll default to, if no defaults are configured
   # DEFAULT_RVM_REVISION = :HEAD # just use head for now
-  DEFAULT_RVM_REVISION = "1.0.15"
-  DEFAULT_RUBY_VERSION = "ree-1.8.7-2010.02"
+  DEFAULT_RVM_REVISION = "ed4f3a28a08a9e3c1401" # "1.2.7"
+  DEFAULT_RUBY_VERSION = "ree-1.8.7-2011.03"
   # DEFAULT_RUBYGEMS_VERSION = :current # just use whatever we get
   DEFAULT_RUBYGEMS_VERSION = "1.4.2" # force downgrade to this
   # Latest is 1.5.2, but rails 2.3.x can't use past 1.4.?

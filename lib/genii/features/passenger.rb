@@ -1,5 +1,5 @@
 class Features::Passenger < Feature
-  DEFAULT_GEM_VERSION = "3.0.3"
+  DEFAULT_GEM_VERSION = "3.0.4"
 
   attr_accessor :gem_version
 
@@ -10,7 +10,8 @@ class Features::Passenger < Feature
 
   def create_dependencies
     depends_on :packages => {
-                 :names => %w[apache2-prefork-dev libapr1-dev libaprutil1-dev],
+                 :names => %w[apache2-prefork-dev libapr1-dev libaprutil1-dev
+                              libcurl4-openssl-dev],
                }
     depends_on :ruby_gem => {
                  :name => :passenger,
